@@ -3,91 +3,84 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Drippler Extension</title>
+    <title>Drippler</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="container">
-      <header>
-        <h1>Drippler</h1>
-        <p class="subtitle">Chrome Extension</p>
-      </header>
-
-      <main>
-        <div class="status-section">
-          <div class="status-indicator" id="statusIndicator">
-            <div class="status-dot"></div>
-            <span id="statusText">Connecting...</span>
+      <!-- Header -->
+      <header class="header">
+        <div class="logo">
+          <h1>✨ Drippler</h1>
+        </div>
+        <div class="header-user" id="headerUser" style="display: none">
+          <div class="header-avatar" id="headerAvatar">
+            <img id="headerProfileImage" style="display: none" />
+            <span id="headerUserInitials">U</span>
           </div>
         </div>
+      </header>
 
-        <!-- Authentication Section -->
-        <div class="auth-section" id="authSection">
-          <!-- Login/Signup Forms (Hidden by default) -->
-          <div class="auth-forms" id="authForms" style="display: none">
-            <div class="form-tabs">
-              <button class="tab-btn active" id="loginTab">Login</button>
-              <button class="tab-btn" id="signupTab">Sign Up</button>
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Authentication Forms -->
+        <div class="auth-section" id="authForms" style="display: none">
+          <div class="auth-container">
+            <!-- Auth Tabs -->
+            <div class="auth-tabs">
+              <button class="auth-tab active" id="loginTab">Sign In</button>
+              <button class="auth-tab" id="signupTab">Sign Up</button>
             </div>
 
             <!-- Login Form -->
             <form class="auth-form" id="loginForm">
               <div class="form-group">
-                <label for="loginEmail">Email</label>
                 <input
                   type="email"
                   id="loginEmail"
-                  placeholder="your@email.com"
+                  placeholder="Email address"
                   required
                 />
               </div>
               <div class="form-group">
-                <label for="loginPassword">Password</label>
                 <input
                   type="password"
                   id="loginPassword"
-                  placeholder="••••••••"
+                  placeholder="Password"
                   required
                 />
               </div>
               <button type="submit" class="btn primary full-width">
                 Sign In
               </button>
-              <button
-                type="button"
-                class="btn secondary full-width"
-                id="forgotPasswordBtn"
-              >
-                Forgot Password?
+              <button type="button" class="btn link" id="forgotPasswordBtn">
+                Forgot password?
               </button>
             </form>
 
             <!-- Signup Form -->
             <form class="auth-form" id="signupForm" style="display: none">
               <div class="form-group">
-                <label for="signupEmail">Email</label>
                 <input
                   type="email"
                   id="signupEmail"
-                  placeholder="your@email.com"
+                  placeholder="Email address"
                   required
                 />
               </div>
               <div class="form-group">
-                <label for="signupPassword">Password</label>
                 <input
                   type="password"
                   id="signupPassword"
-                  placeholder="••••••••"
+                  placeholder="Password"
                   required
                 />
               </div>
               <div class="form-group">
-                <label for="confirmPassword">Confirm Password</label>
                 <input
                   type="password"
                   id="confirmPassword"
-                  placeholder="••••••••"
+                  placeholder="Confirm password"
                   required
                 />
               </div>
@@ -99,23 +92,18 @@
             <!-- Password Reset Form -->
             <form class="auth-form" id="resetForm" style="display: none">
               <div class="form-group">
-                <label for="resetEmail">Email</label>
                 <input
                   type="email"
                   id="resetEmail"
-                  placeholder="your@email.com"
+                  placeholder="Email address"
                   required
                 />
               </div>
               <button type="submit" class="btn primary full-width">
                 Send Reset Link
               </button>
-              <button
-                type="button"
-                class="btn secondary full-width"
-                id="backToLoginBtn"
-              >
-                Back to Login
+              <button type="button" class="btn link" id="backToLoginBtn">
+                Back to sign in
               </button>
             </form>
 
@@ -126,20 +114,18 @@
               style="display: none"
             >
               <div class="form-group">
-                <label for="newPassword">New Password</label>
                 <input
                   type="password"
                   id="newPassword"
-                  placeholder="••••••••"
+                  placeholder="New password"
                   required
                 />
               </div>
               <div class="form-group">
-                <label for="confirmNewPassword">Confirm New Password</label>
                 <input
                   type="password"
                   id="confirmNewPassword"
-                  placeholder="••••••••"
+                  placeholder="Confirm new password"
                   required
                 />
               </div>
@@ -148,68 +134,181 @@
               </button>
             </form>
           </div>
+        </div>
 
-          <!-- User Dashboard (Shown when authenticated) -->
-          <div class="user-dashboard" id="userDashboard" style="display: none">
-            <!-- Tab Navigation -->
-            <div class="tab-navigation">
-              <button class="tab-btn active" data-tab="profile">
-                👤 Profile
-              </button>
-              <button class="tab-btn" data-tab="wardrobe">👕 Wardrobe</button>
-              <button class="tab-btn" data-tab="tryons">✨ Try-Ons</button>
-            </div>
+        <!-- User Dashboard -->
+        <div class="dashboard" id="userDashboard" style="display: none">
+          <!-- Tab Navigation -->
+          <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="avatars">Avatars</button>
+            <button class="tab-btn" data-tab="wardrobe">Wardrobe</button>
+            <button class="tab-btn" data-tab="tryons">Try-Ons</button>
+          </div>
 
-            <!-- Profile Tab -->
-            <div class="tab-content active" id="profileTab">
-              <div class="user-info">
-                <div class="user-avatar" id="userAvatar">
-                  <img id="profileImage" style="display: none" />
-                  <span id="userInitials">U</span>
-                  <div class="avatar-upload" id="avatarUpload">
-                    <span>📷</span>
+          <!-- Tab Content Container -->
+          <div class="tab-container">
+            <!-- Avatars Tab -->
+            <div class="tab-content active" id="avatarsTab">
+              <div class="section-header">
+                <h3>My Avatars</h3>
+                <button class="btn primary small" id="addAvatarBtn">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                  </svg>
+                  Add Avatar
+                </button>
+              </div>
+              <!-- Active Avatar Display - Outside content-area to stay static -->
+              <div
+                class="active-avatar-section"
+                id="activeAvatarSection"
+                style="display: none"
+              >
+                <div class="active-avatar-container">
+                  <div class="active-avatar-frame">
+                    <img
+                      id="activeAvatarImage"
+                      src=""
+                      alt="Active Avatar"
+                      class="active-avatar-img"
+                    />
+                    <div class="active-avatar-badge">✓ Active</div>
                   </div>
-                </div>
-                <div class="user-details">
-                  <div class="user-email" id="userEmail">user@example.com</div>
-                  <div class="user-status" id="userStatus">Verified</div>
+                  <div class="active-avatar-info">
+                    <h4>Current Avatar</h4>
+                    <p>This avatar is used for virtual try-ons</p>
+                  </div>
                 </div>
               </div>
 
-              <!-- Profile Image Upload -->
+              <!-- Scrollable Content Area -->
+              <div class="content-area">
+                <!-- Avatar Selection Grid -->
+                <div class="avatar-selection-section">
+                  <h4 class="selection-title" id="selectionTitle">
+                    Choose Your Avatar
+                  </h4>
+                  <div class="avatars-grid" id="avatarsGrid">
+                    <div class="empty-state">
+                      <div class="empty-icon">
+                        <svg
+                          width="48"
+                          height="48"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path
+                            d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M7.07,18.28C7.5,17.38 10.12,16.5 12,16.5C13.88,16.5 16.5,17.38 16.93,18.28C15.57,19.36 13.86,20 12,20C10.14,20 8.43,19.36 7.07,18.28M18.36,16.83C16.93,15.09 13.46,14.5 12,14.5C10.54,14.5 7.07,15.09 5.64,16.83C4.62,15.5 4,13.82 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,13.82 19.38,15.5 18.36,16.83M12,6C10.06,6 8.5,7.56 8.5,9.5C8.5,11.44 10.06,13 12,13C13.94,13 15.5,11.44 15.5,9.5C15.5,7.56 13.94,6 12,6M12,11A1.5,1.5 0 0,1 10.5,9.5A1.5,1.5 0 0,1 12,8A1.5,1.5 0 0,1 13.5,9.5A1.5,1.5 0 0,1 12,11Z"
+                          />
+                        </svg>
+                      </div>
+                      <h3>Add Your First Avatar</h3>
+                      <p>
+                        Upload photos of yourself to use for virtual try-ons.
+                        Your active avatar will be used to generate realistic
+                        clothing previews.
+                      </p>
+                      <div class="empty-action">
+                        <button
+                          class="btn primary"
+                          onclick="document.getElementById('avatarFileInput').click()"
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                          >
+                            <path
+                              d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                            />
+                          </svg>
+                          Upload Photo
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Hidden file input for avatar upload -->
               <input
                 type="file"
-                id="profileImageInput"
+                id="avatarFileInput"
                 accept="image/*"
                 style="display: none"
               />
-
-              <div class="profile-actions">
-                <button class="btn secondary full-width" id="changePasswordBtn">
-                  🔑 Change Password
-                </button>
-                <button class="btn danger full-width" id="deleteAccountBtn">
-                  🗑️ Delete Account
-                </button>
-                <button class="btn secondary full-width" id="signOutBtn">
-                  🚪 Sign Out
-                </button>
-              </div>
             </div>
 
             <!-- Wardrobe Tab -->
             <div class="tab-content" id="wardrobeTab">
               <div class="section-header">
                 <h3>My Wardrobe</h3>
-                <button class="btn small primary" id="addClothingBtn">
-                  + Add Item
+                <button class="btn primary small" id="addClothingBtn">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                  </svg>
+                  Add Item
                 </button>
               </div>
-              <div class="clothing-grid" id="clothingGrid">
-                <div class="loading-message">Loading wardrobe...</div>
+              <div class="content-area">
+                <div class="clothing-grid" id="clothingGrid">
+                  <div class="empty-state">
+                    <div class="empty-icon">
+                      <svg
+                        width="48"
+                        height="48"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path
+                          d="M12,2L13.5,6H19L15.5,9L17,13L12,10L7,13L8.5,9L5,6H10.5L12,2M12,7.5L11,10L12,9L13,10L12,7.5Z"
+                        />
+                      </svg>
+                    </div>
+                    <h3>Build Your Wardrobe</h3>
+                    <p>
+                      Add clothing items to your collection. Save items from the
+                      web or upload photos of your own clothes to try them on
+                      virtually.
+                    </p>
+                    <div class="empty-action">
+                      <button
+                        class="btn primary"
+                        onclick="document.getElementById('clothingImageInput').click()"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                        </svg>
+                        Add First Item
+                      </button>
+                    </div>
+                    <div class="empty-tip">
+                      <p>
+                        <strong>Tip:</strong> Right-click on clothing images
+                        while browsing the web to add them instantly!
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <!-- Clothing Upload Modal -->
+              <!-- Hidden file input -->
               <input
                 type="file"
                 id="clothingImageInput"
@@ -221,56 +320,128 @@
             <!-- Try-Ons Tab -->
             <div class="tab-content" id="tryonsTab">
               <div class="section-header">
-                <h3>Virtual Try-Ons</h3>
-                <button class="btn small secondary" id="refreshTryOnsBtn">
-                  🔄 Refresh
+                <h3>Try-On History</h3>
+                <button class="btn secondary small" id="refreshTryOnsBtn">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
+                    />
+                  </svg>
+                  Refresh
                 </button>
               </div>
-              <div class="tryons-grid" id="tryonsGrid">
-                <div class="loading-message">Loading try-ons...</div>
+              <div class="content-area">
+                <div class="tryons-grid" id="tryonsGrid">
+                  <div class="empty-state">
+                    <div class="empty-icon">
+                      <svg
+                        width="48"
+                        height="48"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path
+                          d="M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9V7L15,13.5C14.8,13.8 14.3,14 13.9,14H10.1C9.7,14 9.2,13.8 9,13.5L3,7V9C3,9.6 3.4,10 4,10H5L6.2,21.2C6.3,21.7 6.7,22 7.2,22H16.8C17.3,22 17.7,21.7 17.8,21.2L19,10H20C20.6,10 21,9.6 21,9Z"
+                        />
+                      </svg>
+                    </div>
+                    <h3>Your Try-On Gallery</h3>
+                    <p>
+                      This is where your virtual try-on results will appear.
+                      Start by adding an avatar and some clothing items, then
+                      see how they look together!
+                    </p>
+                    <div class="empty-steps">
+                      <div class="step">
+                        <span class="step-number">1</span>
+                        <span>Add an avatar photo</span>
+                      </div>
+                      <div class="step">
+                        <span class="step-number">2</span>
+                        <span>Build your wardrobe</span>
+                      </div>
+                      <div class="step">
+                        <span class="step-number">3</span>
+                        <span>Try on clothes virtually</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </main>
+    </div>
 
-        <!-- Metadata Test Section (only shown when authenticated) -->
-        <div class="actions-section authenticated-only" style="display: none">
-          <div class="metadata-test-section">
-            <label for="customMessage" class="input-label"
-              >Custom Metadata Message:</label
-            >
-            <input
-              type="text"
-              id="customMessage"
-              class="metadata-input"
-              placeholder="Enter custom message..."
-              maxlength="200"
-            />
-            <button id="testWebAppBtn" class="btn secondary">
-              Test Token & Update Metadata
+    <!-- Profile Modal (Hidden by default) -->
+    <div class="profile-modal" id="profileModal" style="display: none">
+      <div class="profile-modal-content">
+        <div class="profile-modal-header">
+          <h3>Profile Settings</h3>
+          <button class="close-btn" id="closeProfileModal">×</button>
+        </div>
+        <div class="profile-modal-body">
+          <div class="profile-modal-user">
+            <div class="profile-modal-info">
+              <h3 id="modalUserEmail">user@example.com</h3>
+              <span class="profile-modal-badge" id="modalUserStatus"
+                >Verified</span
+              >
+            </div>
+          </div>
+
+          <div class="profile-modal-stats">
+            <div class="generation-stats">
+              <h4>Virtual Try-Ons</h4>
+              <div class="stats-info">
+                <span id="generationCount">0</span> /
+                <span id="generationLimit">15</span> free generations used
+              </div>
+              <div class="stats-bar">
+                <div class="stats-progress" id="statsProgress"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-modal-actions">
+            <button class="action-btn danger" id="modalDeleteAccountBtn">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                />
+              </svg>
+              Delete Account
+            </button>
+            <button class="action-btn" id="modalSignOutBtn">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M16,17V14H9V10H16V7L21,12L16,17M14,2A2,2 0 0,1 16,4V6H14V4H5V20H14V18H16V20A2,2 0 0,1 14,22H5A2,2 0 0,1 3,20V4A2,2 0 0,1 5,2H14Z"
+                />
+              </svg>
+              Sign Out
             </button>
           </div>
         </div>
-
-        <div class="info-section">
-          <div class="info-item">
-            <span class="label">Extension ID:</span>
-            <span class="value" id="extensionId">Loading...</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Version:</span>
-            <span class="value">1.0.0</span>
-          </div>
-        </div>
-      </main>
-
-      <footer>
-        <div class="footer-links">
-          <a href="#" id="settingsLink">Settings</a>
-          <a href="#" id="helpLink">Help</a>
-        </div>
-      </footer>
+      </div>
     </div>
+
+    <!-- Profile image input removed - using avatar system -->
 
     <script src="popup.js"></script>
   </body>

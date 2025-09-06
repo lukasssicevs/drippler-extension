@@ -22,8 +22,51 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupAuthEventListeners();
 
   // Wait for Supabase to be ready, then check authentication
-  await waitForSupabaseReady();
-  await checkCurrentUser();
+  try {
+    console.log("Starting Supabase initialization...");
+    const isReady = await waitForSupabaseReady();
+    console.log("Supabase ready:", isReady);
+
+    if (isReady) {
+      console.log("Checking current user...");
+      await checkCurrentUser();
+    } else {
+      console.error("Supabase failed to initialize");
+      updateStatus("error", "Connection failed");
+      showError(
+        "Failed to connect to Supabase. Please try refreshing the extension."
+      );
+
+      // Show auth forms anyway to allow manual retry
+      setTimeout(() => {
+        showAuthForms();
+      }, 2000);
+    }
+  } catch (error) {
+    console.error("Initialization error:", error);
+    updateStatus("error", "Initialization failed");
+    showError("Extension initialization failed: " + error.message);
+
+    // Show auth forms as fallback
+    setTimeout(() => {
+      showAuthForms();
+    }, 2000);
+  }
+
+  // Fallback timeout to ensure UI shows after 10 seconds
+  setTimeout(() => {
+    const authForms = document.getElementById("authForms");
+    const userDashboard = document.getElementById("userDashboard");
+
+    if (
+      authForms.style.display === "none" &&
+      userDashboard.style.display === "none"
+    ) {
+      console.log("Fallback: Showing auth forms after timeout");
+      updateStatus("ready", "Ready");
+      showAuthForms();
+    }
+  }, 10000);
 });
 
 function initializeUI() {
@@ -35,30 +78,34 @@ function initializeUI() {
 }
 
 function loadExtensionInfo() {
-  // Get extension ID
-  const extensionId = chrome.runtime.id;
-  document.getElementById("extensionId").textContent = extensionId;
-
-  // Get manifest info
+  // Get manifest info for logging
   const manifest = chrome.runtime.getManifest();
   console.log("Extension manifest:", manifest);
+  console.log("Extension ID:", chrome.runtime.id);
 }
 
 function setupEventListeners() {
-  const testWebAppBtn = document.getElementById("testWebAppBtn");
-  const settingsLink = document.getElementById("settingsLink");
-  const helpLink = document.getElementById("helpLink");
+  // No additional event listeners needed here
+  // Auth event listeners are set up in setupAuthEventListeners()
+  console.log("Basic event listeners initialized");
+}
 
-  testWebAppBtn.addEventListener("click", handleTestWebApp);
-  settingsLink.addEventListener("click", openSettings);
-  helpLink.addEventListener("click", openHelp);
+function showAuthForms() {
+  const authForms = document.getElementById("authForms");
+  const userDashboard = document.getElementById("userDashboard");
+
+  if (authForms && userDashboard) {
+    authForms.style.display = "block";
+    userDashboard.style.display = "none";
+    showAuthForm("login");
+  }
 }
 
 async function waitForSupabaseReady() {
   updateStatus("initializing", "Connecting to Supabase...");
 
-  const maxRetries = 10;
-  const retryDelay = 500; // 500ms
+  const maxRetries = 8; // Reduced retries
+  const retryDelay = 1000; // Increased delay to 1s
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -107,16 +154,8 @@ async function waitForSupabaseReady() {
 }
 
 function updateStatus(status, text) {
-  const statusIndicator = document.getElementById("statusIndicator");
-  const statusText = document.getElementById("statusText");
-  const statusDot = statusIndicator.querySelector(".status-dot");
-
-  // Remove existing status classes
-  statusDot.className = "status-dot";
-
-  // Add new status class
-  statusDot.classList.add(`status-${status}`);
-  statusText.textContent = text;
+  // Status bar removed - just log for debugging
+  console.log(`Status: ${status} - ${text}`);
 }
 
 function showError(message) {
@@ -129,71 +168,26 @@ function showSuccess(message) {
 
 function showNotification(message, type = "info") {
   // Remove existing notifications
-  const existingNotification = document.querySelector(".notification");
+  const existingNotification = document.querySelector(".message");
   if (existingNotification) {
     existingNotification.remove();
   }
 
   // Create notification element
   const notification = document.createElement("div");
-  notification.className = `notification notification-${type}`;
+  notification.className = `message ${type}`;
   notification.textContent = message;
-
-  // Add notification styles
-  const notificationStyles = `
-        .notification {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            z-index: 1000;
-            animation: slideIn 0.3s ease;
-        }
-        
-        .notification-error {
-            background: #fee;
-            color: #c33;
-            border: 1px solid #fcc;
-        }
-        
-        .notification-success {
-            background: #efe;
-            color: #3c3;
-            border: 1px solid #cfc;
-        }
-        
-        .notification-info {
-            background: #eef;
-            color: #33c;
-            border: 1px solid #ccf;
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateY(-100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-    `;
-
-  // Add styles if not already added
-  if (!document.querySelector("#notification-styles")) {
-    const styleSheet = document.createElement("style");
-    styleSheet.id = "notification-styles";
-    styleSheet.textContent = notificationStyles;
-    document.head.appendChild(styleSheet);
-  }
 
   // Add to popup
   document.body.appendChild(notification);
 
-  // Auto remove after 5 seconds
+  // Auto remove after delay
+  const delay = type === "error" ? 5000 : 3000;
   setTimeout(() => {
     if (notification.parentNode) {
       notification.remove();
     }
-  }, 5000);
+  }, delay);
 }
 
 function openSettings() {
@@ -407,23 +401,15 @@ function setupAuthEventListeners() {
   document
     .getElementById("backToLoginBtn")
     .addEventListener("click", () => showAuthForm("login"));
-  document
-    .getElementById("changePasswordBtn")
-    .addEventListener("click", () => showAuthForm("updatePassword"));
-  document
-    .getElementById("signOutBtn")
-    .addEventListener("click", handleSignOut);
+  // Profile image input removed - using avatar system now
 
-  // Profile image upload listeners
+  // Avatar management listeners
   document
-    .getElementById("avatarUpload")
-    .addEventListener("click", handleAvatarUploadClick);
+    .getElementById("addAvatarBtn")
+    ?.addEventListener("click", handleAddAvatarClick);
   document
-    .getElementById("userAvatar")
-    .addEventListener("click", handleAvatarUploadClick);
-  document
-    .getElementById("profileImageInput")
-    .addEventListener("change", handleProfileImageUpload);
+    .getElementById("avatarFileInput")
+    ?.addEventListener("change", handleAvatarFileUpload);
 
   // Clothing management listeners
   document
@@ -446,10 +432,41 @@ function setupAuthEventListeners() {
     .getElementById("refreshTryOnsBtn")
     ?.addEventListener("click", loadTryOnGenerations);
 
-  // Account deletion listener
+  // Header avatar click to open profile modal
   document
-    .getElementById("deleteAccountBtn")
+    .getElementById("headerAvatar")
+    ?.addEventListener("click", openProfileModal);
+
+  // Profile modal listeners
+  document
+    .getElementById("closeProfileModal")
+    ?.addEventListener("click", closeProfileModal);
+  document
+    .getElementById("modalDeleteAccountBtn")
     ?.addEventListener("click", handleDeleteAccount);
+  document
+    .getElementById("modalSignOutBtn")
+    ?.addEventListener("click", handleSignOut);
+
+  // Profile modal backdrop click to close
+  document.getElementById("profileModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "profileModal") {
+      closeProfileModal();
+    }
+  });
+
+  // Event delegation for empty state action buttons
+  document.addEventListener("click", (e) => {
+    const button = e.target.closest("[data-action]");
+    if (!button) return;
+
+    const action = button.dataset.action;
+    if (action === "add-avatar") {
+      document.getElementById("avatarFileInput").click();
+    } else if (action === "add-clothing") {
+      document.getElementById("clothingImageInput").click();
+    }
+  });
 }
 
 function showAuthForm(formType) {
@@ -654,6 +671,10 @@ async function handleSignOut() {
       showSuccess("Successfully signed out!");
       currentUser = null;
       isAuthenticated = false;
+
+      // Close profile modal before updating auth state
+      closeProfileModal();
+
       updateAuthState();
       clearForms();
     } else {
@@ -739,29 +760,26 @@ function updateAuthState() {
     authForms.style.display = "none";
     userDashboard.style.display = "block";
 
-    // Show metadata test section
+    // Hide metadata test section (removed from new design)
     if (actionsSection) {
-      actionsSection.style.display = "block";
+      actionsSection.style.display = "none";
     }
 
-    // Update user info
-    const userEmail = document.getElementById("userEmail");
-    const userInitials = document.getElementById("userInitials");
-    const userStatus = document.getElementById("userStatus");
+    // Show header user avatar
+    const headerUser = document.getElementById("headerUser");
+    if (headerUser) {
+      headerUser.style.display = "flex";
+    }
 
-    userEmail.textContent = currentUser.email || "Unknown";
-    userInitials.textContent = (currentUser.email || "U")
-      .charAt(0)
-      .toUpperCase();
-    userStatus.textContent = currentUser.email_confirmed_at
-      ? "Verified"
-      : "Unverified";
+    // Update header and modal user info
+    updateHeaderUserInfo();
+    updateModalUserInfo();
 
     // Load wardrobe items
     loadClothingItems();
 
-    // Load profile image if available
-    loadProfileImage();
+    // Load avatars
+    loadAvatars();
   } else {
     // Show auth forms and hide user dashboard
     container.classList.add("unauthenticated");
@@ -774,148 +792,60 @@ function updateAuthState() {
       actionsSection.style.display = "none";
     }
 
+    // Hide header user avatar
+    const headerUser = document.getElementById("headerUser");
+    if (headerUser) {
+      headerUser.style.display = "none";
+    }
+
     showAuthForm("login");
   }
 }
 
-// Profile image upload functions
-function handleAvatarUploadClick() {
-  document.getElementById("profileImageInput").click();
-}
-
-async function handleProfileImageUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  console.log("Profile image file selected:", {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-  });
-
-  // Validate file type and size
-  if (!file.type.startsWith("image/")) {
-    showError("Please select a valid image file");
-    return;
-  }
-
-  if (file.size > 5 * 1024 * 1024) {
-    // 5MB limit
-    showError("Image size must be less than 5MB");
-    return;
-  }
-
-  try {
-    updateStatus("uploading", "Uploading profile image...");
-
-    // Convert file to base64 for safer transmission
-    console.log("Converting file to base64...");
-    const base64Data = await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-        const base64 = reader.result.split(",")[1];
-        resolve(base64);
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // Log what we're sending to help debug
-    console.log("Sending profile image data:", {
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-      base64Length: base64Data.length,
-    });
-
-    const response = await chrome.runtime.sendMessage({
-      action: "uploadProfileImage",
-      data: {
-        fileData: base64Data,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        encoding: "base64",
-      },
-    });
-
-    if (response.success) {
-      showSuccess("Profile image updated successfully!");
-
-      // Update the profile image in UI
-      const profileImg = document.getElementById("profileImage");
-      const userInitials = document.getElementById("userInitials");
-
-      profileImg.src = response.data.imageUrl;
-      profileImg.style.display = "block";
-      userInitials.style.display = "none";
-
-      updateStatus("authenticated", "Authenticated");
-    } else {
-      showError(response.error || "Failed to upload profile image");
-      updateStatus("authenticated", "Authenticated");
-    }
-  } catch (error) {
-    console.error("Error uploading profile image:", error);
-    showError("Error uploading profile image: " + error.message);
-    updateStatus("authenticated", "Authenticated");
-  }
-
-  // Clear the input
-  event.target.value = "";
-}
-
-async function loadProfileImage() {
-  try {
-    console.log("Loading profile image...");
-
-    // First try to get profile from the profiles table
-    const profileResponse = await chrome.runtime.sendMessage({
-      action: "getUserProfile",
-    });
-
-    let imageUrl = null;
-
-    if (profileResponse.success && profileResponse.profile?.profile_image_url) {
-      imageUrl = profileResponse.profile.profile_image_url;
-      console.log("Found profile image in profiles table:", imageUrl);
-    } else {
-      // Fallback to user metadata
-      const userResponse = await chrome.runtime.sendMessage({
-        action: "getCurrentUser",
-      });
-
-      if (
-        userResponse.success &&
-        userResponse.user &&
-        userResponse.user.user_metadata &&
-        userResponse.user.user_metadata.avatar_url
-      ) {
-        imageUrl = userResponse.user.user_metadata.avatar_url;
-        console.log("Found profile image in user metadata:", imageUrl);
-      }
-    }
-
-    if (imageUrl) {
-      const profileImg = document.getElementById("profileImage");
-      const userInitials = document.getElementById("userInitials");
-
-      profileImg.src = imageUrl;
-      profileImg.style.display = "block";
-      userInitials.style.display = "none";
-
-      console.log("Profile image loaded successfully");
-    } else {
-      console.log("No profile image found");
-    }
-  } catch (error) {
-    console.error("Error loading profile image:", error);
-  }
-}
+// Profile image functions removed - using avatar system now
 
 // Clothing management functions
 function handleAddClothingClick() {
   document.getElementById("clothingImageInput").click();
+}
+
+function updateClothingButtonState(state) {
+  const addClothingBtn = document.getElementById("addClothingBtn");
+  if (!addClothingBtn) return;
+
+  switch (state) {
+    case "loading":
+      addClothingBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="spinning">
+          <path d="M12,4a8,8 0 0,1 7.89,6.7 1.53,1.53 0 0,0 1.49,1.3 1.5,1.5 0 0,0 1.48-1.75 11,11 0 0,0-21.72,0A1.5,1.5 0 0,0 2.62,11.25 1.53,1.53 0 0,0 4.11,10.7 8,8 0 0,1 12,4Z"/>
+        </svg>
+        Uploading...
+      `;
+      addClothingBtn.disabled = true;
+      addClothingBtn.classList.add("loading");
+      break;
+    case "success":
+      addClothingBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
+        </svg>
+        Success!
+      `;
+      addClothingBtn.disabled = true;
+      addClothingBtn.classList.add("success");
+      break;
+    case "default":
+    default:
+      addClothingBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+        </svg>
+        Add Item
+      `;
+      addClothingBtn.disabled = false;
+      addClothingBtn.classList.remove("loading", "success");
+      break;
+  }
 }
 
 async function handleClothingImageUpload(event) {
@@ -960,25 +890,8 @@ function showClothingUploadModal(file) {
       <div class="clothing-upload-body">
         <img src="${previewUrl}" class="image-preview" alt="Preview" />
         <div class="clothing-form-group">
-          <label for="clothingName">Item Name</label>
-          <input type="text" id="clothingName" placeholder="e.g., Blue Denim Jacket" />
-        </div>
-        <div class="clothing-form-group">
-          <label for="clothingCategory">Category</label>
-          <select id="clothingCategory">
-            <option value="uncategorized">Uncategorized</option>
-            <option value="tops">Tops</option>
-            <option value="bottoms">Bottoms</option>
-            <option value="outerwear">Outerwear</option>
-            <option value="footwear">Footwear</option>
-            <option value="accessories">Accessories</option>
-            <option value="dresses">Dresses</option>
-            <option value="suits">Suits</option>
-          </select>
-        </div>
-        <div class="clothing-form-group">
-          <label for="clothingTags">Tags (comma-separated)</label>
-          <input type="text" id="clothingTags" placeholder="e.g., casual, blue, denim" />
+          <label for="clothingName">Item Name / Comments</label>
+          <input type="text" id="clothingName" placeholder="e.g., Blue Denim Jacket or any notes about this item" />
         </div>
         <div class="clothing-form-actions">
           <button class="btn secondary" id="cancelClothingUpload">Cancel</button>
@@ -1010,11 +923,6 @@ function showClothingUploadModal(file) {
     .querySelector("#confirmClothingUpload")
     .addEventListener("click", async () => {
       const name = document.getElementById("clothingName").value.trim();
-      const category = document.getElementById("clothingCategory").value;
-      const tagsInput = document.getElementById("clothingTags").value.trim();
-      const tags = tagsInput
-        ? tagsInput.split(",").map((tag) => tag.trim())
-        : [];
 
       if (!name) {
         showError("Please enter an item name");
@@ -1022,8 +930,18 @@ function showClothingUploadModal(file) {
       }
 
       try {
-        modal.querySelector("#confirmClothingUpload").disabled = true;
-        modal.querySelector("#confirmClothingUpload").textContent = "Adding...";
+        // Update main button state to loading
+        updateClothingButtonState("loading");
+
+        // Update modal button state
+        const confirmBtn = modal.querySelector("#confirmClothingUpload");
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="spinning">
+            <path d="M12,4a8,8 0 0,1 7.89,6.7 1.53,1.53 0 0,0 1.49,1.3 1.5,1.5 0 0,0 1.48-1.75 11,11 0 0,0-21.72,0A1.5,1.5 0 0,0 2.62,11.25 1.53,1.53 0 0,0 4.11,10.7 8,8 0 0,1 12,4Z"/>
+          </svg>
+          Adding...
+        `;
 
         // Convert file to base64 for safer transmission
         console.log("Converting clothing file to base64...");
@@ -1046,30 +964,55 @@ function showClothingUploadModal(file) {
             fileSize: file.size,
             encoding: "base64",
             name,
-            category,
-            tags,
+            category: "uncategorized", // Default category
+            tags: [], // Empty tags array
           },
         });
 
         if (response.success) {
+          // Update modal button to success
+          confirmBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
+            </svg>
+            Added!
+          `;
+
+          // Update main button to success
+          updateClothingButtonState("success");
+
           showSuccess("Clothing item added to wardrobe!");
-          URL.revokeObjectURL(previewUrl);
-          modal.remove();
+
+          // Close modal after a short delay
+          setTimeout(() => {
+            URL.revokeObjectURL(previewUrl);
+            modal.remove();
+
+            // Reset main button after modal closes
+            setTimeout(() => {
+              updateClothingButtonState("default");
+            }, 1000);
+          }, 1500);
 
           // Refresh the wardrobe display
           loadClothingItems();
         } else {
-          showError(response.error || "Failed to add clothing item");
-          modal.querySelector("#confirmClothingUpload").disabled = false;
-          modal.querySelector("#confirmClothingUpload").textContent =
-            "Add to Wardrobe";
+          throw new Error(response.error || "Failed to add clothing item");
         }
       } catch (error) {
         console.error("Error adding clothing item:", error);
         showError("Error adding clothing item: " + error.message);
-        modal.querySelector("#confirmClothingUpload").disabled = false;
-        modal.querySelector("#confirmClothingUpload").textContent =
-          "Add to Wardrobe";
+
+        // Reset both buttons to default state on error
+        updateClothingButtonState("default");
+        const confirmBtn = modal.querySelector("#confirmClothingUpload");
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+          </svg>
+          Add to Wardrobe
+        `;
       }
     });
 
@@ -1082,7 +1025,7 @@ async function loadClothingItems() {
 
   try {
     clothingGrid.innerHTML =
-      '<div class="loading-message">Loading wardrobe...</div>';
+      '<div class="loading-state">Loading wardrobe...</div>';
 
     const response = await chrome.runtime.sendMessage({
       action: "getClothingItems",
@@ -1092,28 +1035,53 @@ async function loadClothingItems() {
       displayClothingItems(response.data);
     } else {
       clothingGrid.innerHTML =
-        '<div class="loading-message">Failed to load wardrobe</div>';
+        '<div class="loading-state">Failed to load wardrobe</div>';
       console.error("Failed to load clothing items:", response.error);
     }
   } catch (error) {
     console.error("Error loading clothing items:", error);
     clothingGrid.innerHTML =
-      '<div class="loading-message">Error loading wardrobe</div>';
+      '<div class="loading-state">Error loading wardrobe</div>';
   }
 }
 
 function displayClothingItems(items) {
   const clothingGrid = document.getElementById("clothingGrid");
+  const contentArea = clothingGrid.closest(".content-area");
 
   if (!items || items.length === 0) {
+    // Add classes for empty state styling
+    clothingGrid.classList.add("empty-grid");
+    contentArea.classList.add("empty-content");
+
     clothingGrid.innerHTML = `
-      <div class="empty-wardrobe">
-        <p>Your wardrobe is empty</p>
-        <p class="tip">Add items by clicking the + button above, or right-click on images while browsing the web!</p>
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12,2L13.5,6H19L15.5,9L17,13L12,10L7,13L8.5,9L5,6H10.5L12,2M12,7.5L11,10L12,9L13,10L12,7.5Z"/>
+          </svg>
+        </div>
+        <h3>Build Your Wardrobe</h3>
+        <p>Add clothing items to your collection. Save items from the web or upload photos of your own clothes to try them on virtually.</p>
+        <div class="empty-action">
+          <button class="btn primary" data-action="add-clothing">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+            </svg>
+            Add First Item
+          </button>
+        </div>
+        <div class="empty-tip">
+          <p><strong>Tip:</strong> Right-click on clothing images while browsing the web to add them instantly!</p>
+        </div>
       </div>
     `;
     return;
   }
+
+  // Remove empty state classes when showing items
+  clothingGrid.classList.remove("empty-grid");
+  contentArea.classList.remove("empty-content");
 
   clothingGrid.innerHTML = items
     .map(
@@ -1202,16 +1170,15 @@ async function tryOnClothingItem(itemId) {
       return;
     }
 
-    // Get user profile image
-    const profileResponse = await chrome.runtime.sendMessage({
-      action: "getUserProfile",
+    // Get active avatar
+    const avatarResponse = await chrome.runtime.sendMessage({
+      action: "getActiveAvatar",
     });
 
-    if (
-      !profileResponse.success ||
-      !profileResponse.profile?.profile_image_url
-    ) {
-      showError("Please upload a profile image first to use virtual try-on!");
+    if (!avatarResponse.success || !avatarResponse.avatar?.image_url) {
+      showError(
+        "Please upload and select an avatar first to use virtual try-on!"
+      );
       return;
     }
 
@@ -1222,7 +1189,7 @@ async function tryOnClothingItem(itemId) {
     const tryOnResponse = await chrome.runtime.sendMessage({
       action: "generateVirtualTryOn",
       data: {
-        userImageUrl: profileResponse.profile.profile_image_url,
+        userImageUrl: avatarResponse.avatar.image_url,
         clothingImageUrl: clothingItem.image_url,
         clothingName: clothingItem.name,
       },
@@ -1316,9 +1283,441 @@ function showTryOnResult(resultData) {
   document.body.appendChild(modal);
 }
 
+// Avatar management functions
+function handleAddAvatarClick() {
+  document.getElementById("avatarFileInput").click();
+}
+
+function updateAvatarButtonState(state) {
+  const addAvatarBtn = document.getElementById("addAvatarBtn");
+  if (!addAvatarBtn) return;
+
+  switch (state) {
+    case "loading":
+      addAvatarBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="spinning">
+          <path d="M12,4a8,8 0 0,1 7.89,6.7 1.53,1.53 0 0,0 1.49,1.3 1.5,1.5 0 0,0 1.48-1.75 11,11 0 0,0-21.72,0A1.5,1.5 0 0,0 2.62,11.25 1.53,1.53 0 0,0 4.11,10.7 8,8 0 0,1 12,4Z"/>
+        </svg>
+        Uploading...
+      `;
+      addAvatarBtn.disabled = true;
+      addAvatarBtn.classList.add("loading");
+      break;
+    case "success":
+      addAvatarBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
+        </svg>
+        Success!
+      `;
+      addAvatarBtn.disabled = true;
+      addAvatarBtn.classList.add("success");
+      break;
+    case "default":
+    default:
+      addAvatarBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+        </svg>
+        Add Avatar
+      `;
+      addAvatarBtn.disabled = false;
+      addAvatarBtn.classList.remove("loading", "success");
+      break;
+  }
+}
+
+async function handleAvatarFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    updateAvatarButtonState("loading");
+    updateStatus("uploading", "Uploading avatar...");
+
+    // Convert file to base64
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+      const base64Data = e.target.result;
+
+      const response = await chrome.runtime.sendMessage({
+        action: "uploadAvatar",
+        data: {
+          fileData: base64Data,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          encoding: "base64",
+        },
+      });
+
+      if (response.success) {
+        updateAvatarButtonState("success");
+        showSuccess("Avatar uploaded successfully!");
+        loadAvatars();
+        // Update header if this is the first avatar
+        updateHeaderUserInfo();
+
+        // Reset button after 2 seconds
+        setTimeout(() => {
+          updateAvatarButtonState("default");
+        }, 2000);
+      } else {
+        throw new Error(response.error || "Upload failed");
+      }
+      updateStatus("authenticated", "Authenticated");
+    };
+
+    reader.readAsDataURL(file);
+  } catch (error) {
+    console.error("Error uploading avatar:", error);
+    showError("Error uploading avatar: " + error.message);
+    updateAvatarButtonState("default");
+    updateStatus("authenticated", "Authenticated");
+  }
+
+  // Reset input
+  event.target.value = "";
+}
+
+async function loadAvatars() {
+  const avatarsGrid = document.getElementById("avatarsGrid");
+  const activeAvatarSection = document.getElementById("activeAvatarSection");
+  const selectionTitle = document.getElementById("selectionTitle");
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "getAvatars",
+    });
+
+    if (response.success && response.avatars && response.avatars.length > 0) {
+      const activeAvatar = response.avatars.find((avatar) => avatar.is_active);
+
+      // Show active avatar section if there's an active avatar
+      if (activeAvatar) {
+        displayActiveAvatar(activeAvatar);
+        activeAvatarSection.style.display = "block";
+        selectionTitle.textContent = "Change Avatar";
+      } else {
+        activeAvatarSection.style.display = "none";
+        selectionTitle.textContent = "Choose Your Avatar";
+      }
+
+      displayAvatars(response.avatars);
+    } else {
+      activeAvatarSection.style.display = "none";
+      const contentArea = avatarsGrid.closest(".content-area");
+      const avatarSelectionSection = document.querySelector(
+        ".avatar-selection-section"
+      );
+
+      // Add classes for empty state styling
+      avatarsGrid.classList.add("empty-grid");
+      contentArea.classList.add("empty-content");
+      avatarSelectionSection.classList.add("empty-section");
+
+      avatarsGrid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M7.07,18.28C7.5,17.38 10.12,16.5 12,16.5C13.88,16.5 16.5,17.38 16.93,18.28C15.57,19.36 13.86,20 12,20C10.14,20 8.43,19.36 7.07,18.28M18.36,16.83C16.93,15.09 13.46,14.5 12,14.5C10.54,14.5 7.07,15.09 5.64,16.83C4.62,15.5 4,13.82 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,13.82 19.38,15.5 18.36,16.83M12,6C10.06,6 8.5,7.56 8.5,9.5C8.5,11.44 10.06,13 12,13C13.94,13 15.5,11.44 15.5,9.5C15.5,7.56 13.94,6 12,6M12,11A1.5,1.5 0 0,1 10.5,9.5A1.5,1.5 0 0,1 12,8A1.5,1.5 0 0,1 13.5,9.5A1.5,1.5 0 0,1 12,11Z"/>
+            </svg>
+          </div>
+          <h3>Add Your First Avatar</h3>
+          <p>Upload photos of yourself to use for virtual try-ons. Your active avatar will be used to generate realistic clothing previews.</p>
+          <div class="empty-action">
+            <button class="btn primary" data-action="add-avatar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+              </svg>
+              Upload Photo
+            </button>
+          </div>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error("Error loading avatars:", error);
+    activeAvatarSection.style.display = "none";
+    const contentArea = avatarsGrid.closest(".content-area");
+    const avatarSelectionSection = document.querySelector(
+      ".avatar-selection-section"
+    );
+
+    // Add classes for empty state styling (error state)
+    avatarsGrid.classList.add("empty-grid");
+    contentArea.classList.add("empty-content");
+    avatarSelectionSection.classList.add("empty-section");
+
+    avatarsGrid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z"/>
+          </svg>
+        </div>
+        <h3>Error loading avatars</h3>
+        <p>Please try refreshing the extension or check your connection.</p>
+      </div>
+    `;
+  }
+}
+
+function displayActiveAvatar(avatar) {
+  const activeAvatarImage = document.getElementById("activeAvatarImage");
+  activeAvatarImage.src = avatar.image_url;
+}
+
+function displayAvatars(avatars) {
+  const avatarsGrid = document.getElementById("avatarsGrid");
+  const contentArea = avatarsGrid.closest(".content-area");
+  const avatarSelectionSection = document.querySelector(
+    ".avatar-selection-section"
+  );
+
+  // Filter out the active avatar from the grid since it's shown at the top
+  const inactiveAvatars = avatars.filter((avatar) => !avatar.is_active);
+
+  if (inactiveAvatars.length === 0) {
+    // Add classes for empty state styling
+    avatarsGrid.classList.add("empty-grid");
+    contentArea.classList.add("empty-content");
+    contentArea.classList.add("add-more-mode"); // Special class for "add more" scenario
+    avatarSelectionSection.classList.add("empty-section");
+
+    // If only one avatar (the active one), show a message
+    avatarsGrid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+          </svg>
+        </div>
+        <h3>Add More Avatars</h3>
+        <p>Upload additional photos to have multiple avatar options for your try-ons.</p>
+        <div class="empty-action">
+          <button class="btn primary" data-action="add-avatar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+            </svg>
+            Add Another Photo
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Remove empty state classes when showing items
+  avatarsGrid.classList.remove("empty-grid");
+  contentArea.classList.remove("empty-content");
+  contentArea.classList.remove("add-more-mode"); // Remove add-more mode
+  avatarSelectionSection.classList.remove("empty-section");
+
+  avatarsGrid.innerHTML = inactiveAvatars
+    .map(
+      (avatar, index) => `
+    <div class="avatar-item" data-avatar-id="${avatar.id}">
+      <img src="${avatar.image_url}" alt="Avatar ${
+        index + 1
+      }" class="avatar-image" />
+      <div class="avatar-overlay">
+        <button class="avatar-action-btn select" title="Set as Active" data-action="select" data-avatar-id="${
+          avatar.id
+        }">
+          ✓
+        </button>
+        <button class="avatar-action-btn delete" title="Delete Avatar" data-action="delete" data-avatar-id="${
+          avatar.id
+        }">
+          🗑️
+        </button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+
+  // Add event listeners for avatar actions
+  avatarsGrid.addEventListener("click", handleAvatarGridClick);
+}
+
+async function handleAvatarGridClick(event) {
+  const action = event.target.dataset.action;
+  const avatarId = event.target.dataset.avatarId;
+
+  if (!action || !avatarId) return;
+
+  try {
+    if (action === "select") {
+      await setActiveAvatar(avatarId);
+    } else if (action === "delete") {
+      await deleteAvatar(avatarId);
+    }
+  } catch (error) {
+    console.error("Error handling avatar action:", error);
+    showError("Error: " + error.message);
+  }
+}
+
+async function setActiveAvatar(avatarId) {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "setActiveAvatar",
+      avatarId: avatarId,
+    });
+
+    if (response.success) {
+      showSuccess("Avatar set as active!");
+      loadAvatars();
+      updateHeaderUserInfo();
+    } else {
+      throw new Error(response.error || "Failed to set active avatar");
+    }
+  } catch (error) {
+    console.error("Error setting active avatar:", error);
+    showError("Error setting active avatar: " + error.message);
+  }
+}
+
+async function deleteAvatar(avatarId) {
+  if (!confirm("Are you sure you want to delete this avatar?")) return;
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "deleteAvatar",
+      avatarId: avatarId,
+    });
+
+    if (response.success) {
+      showSuccess("Avatar deleted successfully!");
+      loadAvatars();
+      updateHeaderUserInfo();
+    } else {
+      throw new Error(response.error || "Failed to delete avatar");
+    }
+  } catch (error) {
+    console.error("Error deleting avatar:", error);
+    showError("Error deleting avatar: " + error.message);
+  }
+}
+
 // Make functions available globally for onclick handlers
+// Header and modal user info functions
+function updateHeaderUserInfo() {
+  const headerUserInitials = document.getElementById("headerUserInitials");
+  const headerProfileImage = document.getElementById("headerProfileImage");
+
+  if (currentUser) {
+    const initials = (currentUser.email || "U").charAt(0).toUpperCase();
+    headerUserInitials.textContent = initials;
+
+    // Load active avatar in header
+    loadActiveAvatarToElement(headerProfileImage, headerUserInitials);
+  }
+}
+
+async function loadActiveAvatarToElement(imgElement, initialsElement) {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "getActiveAvatar",
+    });
+
+    if (
+      response &&
+      response.success &&
+      response.avatar &&
+      response.avatar.image_url
+    ) {
+      imgElement.src = response.avatar.image_url;
+      imgElement.style.display = "block";
+      initialsElement.style.display = "none";
+    } else {
+      // Show initials if no active avatar
+      imgElement.style.display = "none";
+      initialsElement.style.display = "flex";
+    }
+  } catch (error) {
+    console.error("Error loading active avatar:", error);
+    // Show initials on error
+    imgElement.style.display = "none";
+    initialsElement.style.display = "flex";
+  }
+}
+
+function updateModalUserInfo() {
+  const modalUserEmail = document.getElementById("modalUserEmail");
+  const modalUserStatus = document.getElementById("modalUserStatus");
+
+  if (currentUser) {
+    modalUserEmail.textContent = currentUser.email || "Unknown";
+    modalUserStatus.textContent = currentUser.email_confirmed_at
+      ? "Verified"
+      : "Unverified";
+
+    // Load generation stats
+    loadGenerationStats();
+  }
+}
+
+async function loadGenerationStats() {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "getTryOnGenerations",
+    });
+
+    if (response && response.success) {
+      const generationCount = response.data?.generationCount || 0;
+      const generationLimit = response.data?.maxGenerations || 15;
+
+      // Update display
+      document.getElementById("generationCount").textContent = generationCount;
+      document.getElementById("generationLimit").textContent = generationLimit;
+
+      // Update progress bar
+      const progressBar = document.getElementById("statsProgress");
+      const percentage = (generationCount / generationLimit) * 100;
+      progressBar.style.width = `${percentage}%`;
+
+      // Update progress bar color based on usage
+      progressBar.classList.remove("warning", "danger");
+      if (percentage >= 90) {
+        progressBar.classList.add("danger");
+      } else if (percentage >= 70) {
+        progressBar.classList.add("warning");
+      }
+    }
+  } catch (error) {
+    console.error("Error loading generation stats:", error);
+    // Set defaults on error
+    document.getElementById("generationCount").textContent = "0";
+    document.getElementById("generationLimit").textContent = "15";
+  }
+}
+
+// Old profile image function removed - using avatar system now
+
+// Profile modal functions
+function openProfileModal() {
+  const profileModal = document.getElementById("profileModal");
+  if (profileModal) {
+    updateModalUserInfo(); // Refresh modal data
+    profileModal.style.display = "flex";
+  }
+}
+
+function closeProfileModal() {
+  const profileModal = document.getElementById("profileModal");
+  if (profileModal) {
+    profileModal.style.display = "none";
+  }
+}
+
 window.deleteClothingItem = deleteClothingItem;
 window.tryOnClothingItem = tryOnClothingItem;
+window.downloadTryOn = downloadTryOn;
+window.deleteTryOn = deleteTryOn;
+window.downloadImage = downloadImage;
 
 // Tab management functions
 function switchTab(tabName) {
@@ -1340,6 +1739,8 @@ function switchTab(tabName) {
     loadTryOnGenerations();
   } else if (tabName === "wardrobe") {
     loadClothingItems();
+  } else if (tabName === "avatars") {
+    loadAvatars();
   }
 }
 
@@ -1349,38 +1750,66 @@ async function loadTryOnGenerations() {
 
   try {
     tryonsGrid.innerHTML =
-      '<div class="loading-message">Loading try-ons...</div>';
+      '<div class="loading-state">Loading try-ons...</div>';
 
     const response = await chrome.runtime.sendMessage({
       action: "getTryOnGenerations",
     });
 
     if (response.success) {
-      displayTryOnGenerations(response.data);
+      displayTryOnGenerations(response.data.generations);
     } else {
       tryonsGrid.innerHTML =
-        '<div class="loading-message">Failed to load try-ons</div>';
+        '<div class="loading-state">Failed to load try-ons</div>';
       console.error("Failed to load try-on generations:", response.error);
     }
   } catch (error) {
     console.error("Error loading try-on generations:", error);
     tryonsGrid.innerHTML =
-      '<div class="loading-message">Error loading try-ons</div>';
+      '<div class="loading-state">Error loading try-ons</div>';
   }
 }
 
 function displayTryOnGenerations(generations) {
   const tryonsGrid = document.getElementById("tryonsGrid");
+  const contentArea = tryonsGrid.closest(".content-area");
 
   if (!generations || generations.length === 0) {
+    // Add classes for empty state styling
+    tryonsGrid.classList.add("empty-grid");
+    contentArea.classList.add("empty-content");
+
     tryonsGrid.innerHTML = `
-      <div class="empty-tryons">
-        <p>No virtual try-ons yet</p>
-        <p class="tip">Go to the Wardrobe tab and click the 👤 button on any clothing item to generate your first try-on!</p>
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9V7L15,13.5C14.8,13.8 14.3,14 13.9,14H10.1C9.7,14 9.2,13.8 9,13.5L3,7V9C3,9.6 3.4,10 4,10H5L6.2,21.2C6.3,21.7 6.7,22 7.2,22H16.8C17.3,22 17.7,21.7 17.8,21.2L19,10H20C20.6,10 21,9.6 21,9Z"/>
+          </svg>
+        </div>
+        <h3>Your Try-On Gallery</h3>
+        <p>This is where your virtual try-on results will appear. Start by adding an avatar and some clothing items, then see how they look together!</p>
+        <div class="empty-steps">
+          <div class="step">
+            <span class="step-number">1</span>
+            <span>Add an avatar photo</span>
+          </div>
+          <div class="step">
+            <span class="step-number">2</span>
+            <span>Build your wardrobe</span>
+          </div>
+          <div class="step">
+            <span class="step-number">3</span>
+            <span>Try on clothes virtually</span>
+          </div>
+        </div>
       </div>
     `;
     return;
   }
+
+  // Remove empty state classes when showing items
+  tryonsGrid.classList.remove("empty-grid");
+  contentArea.classList.remove("empty-content");
 
   tryonsGrid.innerHTML = generations
     .map(
@@ -1393,14 +1822,14 @@ function displayTryOnGenerations(generations) {
         <div class="tryon-item-date">${formatDate(generation.created_at)}</div>
       </div>
       <div class="tryon-item-actions">
-        <button class="tryon-action-btn download" onclick="downloadTryOn('${
+        <button class="tryon-action-btn download" data-action="download" data-image-url="${
           generation.generated_image_url
-        }')" title="Download">
+        }" title="Download">
           ⬇️
         </button>
-        <button class="tryon-action-btn delete" onclick="deleteTryOn('${
+        <button class="tryon-action-btn delete" data-action="delete" data-item-id="${
           generation.id
-        }')" title="Delete">
+        }" title="Delete">
           🗑️
         </button>
       </div>
@@ -1409,17 +1838,38 @@ function displayTryOnGenerations(generations) {
     )
     .join("");
 
-  // Add click listeners for viewing full size
+  // Remove any existing event listeners to prevent duplicates
+  tryonsGrid.removeEventListener("click", handleTryOnGridClick);
+  // Add click listeners for viewing full size and button actions
   tryonsGrid.addEventListener("click", handleTryOnGridClick);
 }
 
 function handleTryOnGridClick(event) {
-  const tryonItem = event.target.closest(".tryon-item");
-  if (!tryonItem || event.target.closest(".tryon-action-btn")) return;
+  const button = event.target.closest(".tryon-action-btn");
 
-  const img = tryonItem.querySelector("img");
-  if (img) {
-    showFullSizeTryOn(img.src);
+  if (button) {
+    // Handle button clicks
+    const action = button.dataset.action;
+    const imageUrl = button.dataset.imageUrl;
+    const itemId = button.dataset.itemId;
+
+    console.log("Try-on button clicked:", { action, imageUrl, itemId, button });
+
+    if (action === "download" && imageUrl) {
+      downloadTryOn(imageUrl);
+    } else if (action === "delete" && itemId) {
+      deleteTryOn(itemId);
+    }
+    return;
+  }
+
+  // Handle image clicks for full-size view
+  const tryonItem = event.target.closest(".tryon-item");
+  if (tryonItem && !event.target.closest(".tryon-action-btn")) {
+    const img = tryonItem.querySelector("img");
+    if (img) {
+      showFullSizeTryOn(img.src);
+    }
   }
 }
 
@@ -1544,11 +1994,6 @@ async function handleDeleteAccount() {
     updateStatus("authenticated", "Authenticated");
   }
 }
-
-// Make functions globally accessible
-window.downloadTryOn = downloadTryOn;
-window.deleteTryOn = deleteTryOn;
-window.downloadImage = downloadImage;
 
 function setButtonLoading(button, loading) {
   if (loading) {

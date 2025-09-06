@@ -146,6 +146,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleDeleteAccount(sendResponse);
       break;
 
+    // Avatar management
+    case "uploadAvatar":
+      handleUploadAvatar(request.data, sendResponse);
+      break;
+    case "getAvatars":
+      handleGetAvatars(sendResponse);
+      break;
+    case "getActiveAvatar":
+      handleGetActiveAvatar(sendResponse);
+      break;
+    case "setActiveAvatar":
+      handleSetActiveAvatar(request.avatarId, sendResponse);
+      break;
+    case "deleteAvatar":
+      handleDeleteAvatar(request.avatarId, sendResponse);
+      break;
+
     default:
       console.warn("Unknown action:", request.action);
       sendResponse({ success: false, error: "Unknown action" });
@@ -2024,7 +2041,7 @@ async function handleGetTryOnGenerations(sendResponse) {
 
     sendResponse({
       success: true,
-      data: responseData.data.generations,
+      data: responseData.data, // Pass the complete data object including counts
       message: "Try-on generations retrieved successfully",
       timestamp: new Date().toISOString(),
     });
@@ -2254,6 +2271,331 @@ async function handleDeleteAccount(sendResponse) {
       error: error.message,
       timestamp: new Date().toISOString(),
     });
+  }
+}
+
+// Utility function for file extensions
+function getFileExtension(fileName, fileType) {
+  // Try to get extension from file name first
+  if (fileName && fileName.includes(".")) {
+    const parts = fileName.split(".");
+    return parts[parts.length - 1].toLowerCase();
+  }
+
+  // Fallback to MIME type mapping
+  const mimeTypeMap = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/svg+xml": "svg",
+    "image/bmp": "bmp",
+    "image/tiff": "tiff",
+  };
+
+  return mimeTypeMap[fileType] || "jpg"; // Default to jpg
+}
+
+// Avatar management functions
+async function handleUploadAvatar(data, sendResponse) {
+  try {
+    if (!supabaseClient) {
+      sendResponse({ success: false, error: "Supabase not initialized" });
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+      sendResponse({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    console.log("Uploading avatar for user:", user.id);
+    console.log("File data received, size:", data.fileSize);
+
+    // Extract base64 data (remove data:image/jpeg;base64, prefix)
+    const base64String = data.fileData.split(",")[1];
+    const fileExtension = getFileExtension(data.fileName, data.fileType);
+
+    // Create unique filename with user folder for RLS
+    const fileName = `${user.id}/avatar-${Date.now()}.${fileExtension}`;
+
+    // Convert base64 to Uint8Array
+    const binaryString = atob(base64String);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Upload to storage
+    const { data: uploadData, error: uploadError } =
+      await supabaseClient.storage.from("avatars").upload(fileName, bytes, {
+        contentType: data.fileType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      sendResponse({
+        success: false,
+        error: `Upload failed: ${uploadError.message}`,
+      });
+      return;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabaseClient.storage
+      .from("avatars")
+      .getPublicUrl(fileName);
+
+    if (!urlData?.publicUrl) {
+      sendResponse({ success: false, error: "Failed to get public URL" });
+      return;
+    }
+
+    // Check if user has any avatars already
+    const { data: existingAvatars } = await supabaseClient
+      .from("user_avatars")
+      .select("id")
+      .eq("user_id", user.id);
+
+    const isFirstAvatar = !existingAvatars || existingAvatars.length === 0;
+
+    // Save avatar record to database
+    const { data: avatarData, error: avatarError } = await supabaseClient
+      .from("user_avatars")
+      .insert([
+        {
+          user_id: user.id,
+          image_url: urlData.publicUrl,
+          file_name: fileName,
+          is_active: isFirstAvatar, // First avatar becomes active automatically
+          created_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (avatarError) {
+      console.error("Database error:", avatarError);
+      // Clean up uploaded file
+      await supabaseClient.storage.from("avatars").remove([fileName]);
+      sendResponse({
+        success: false,
+        error: `Database error: ${avatarError.message}`,
+      });
+      return;
+    }
+
+    console.log("Avatar uploaded successfully:", avatarData);
+    sendResponse({
+      success: true,
+      avatar: avatarData,
+      message: isFirstAvatar
+        ? "Avatar uploaded and set as active!"
+        : "Avatar uploaded successfully!",
+    });
+  } catch (error) {
+    console.error("Error uploading avatar:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleGetAvatars(sendResponse) {
+  try {
+    if (!supabaseClient) {
+      sendResponse({ success: false, error: "Supabase not initialized" });
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+      sendResponse({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    const { data: avatars, error } = await supabaseClient
+      .from("user_avatars")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error getting avatars:", error);
+      sendResponse({ success: false, error: error.message });
+      return;
+    }
+
+    sendResponse({ success: true, avatars: avatars || [] });
+  } catch (error) {
+    console.error("Error getting avatars:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleGetActiveAvatar(sendResponse) {
+  try {
+    if (!supabaseClient) {
+      sendResponse({ success: false, error: "Supabase not initialized" });
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+      sendResponse({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    const { data: avatar, error } = await supabaseClient
+      .from("user_avatars")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 = no rows found
+      console.error("Error getting active avatar:", error);
+      sendResponse({ success: false, error: error.message });
+      return;
+    }
+
+    sendResponse({ success: true, avatar: avatar || null });
+  } catch (error) {
+    console.error("Error getting active avatar:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleSetActiveAvatar(avatarId, sendResponse) {
+  try {
+    if (!supabaseClient) {
+      sendResponse({ success: false, error: "Supabase not initialized" });
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+      sendResponse({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    // First, deactivate all avatars for this user
+    const { error: deactivateError } = await supabaseClient
+      .from("user_avatars")
+      .update({ is_active: false })
+      .eq("user_id", user.id);
+
+    if (deactivateError) {
+      console.error("Error deactivating avatars:", deactivateError);
+      sendResponse({ success: false, error: deactivateError.message });
+      return;
+    }
+
+    // Then, activate the selected avatar
+    const { data: avatar, error: activateError } = await supabaseClient
+      .from("user_avatars")
+      .update({ is_active: true })
+      .eq("id", avatarId)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (activateError) {
+      console.error("Error activating avatar:", activateError);
+      sendResponse({ success: false, error: activateError.message });
+      return;
+    }
+
+    sendResponse({ success: true, avatar });
+  } catch (error) {
+    console.error("Error setting active avatar:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleDeleteAvatar(avatarId, sendResponse) {
+  try {
+    if (!supabaseClient) {
+      sendResponse({ success: false, error: "Supabase not initialized" });
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+      sendResponse({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    // Get avatar info before deleting
+    const { data: avatar, error: getError } = await supabaseClient
+      .from("user_avatars")
+      .select("*")
+      .eq("id", avatarId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (getError) {
+      console.error("Error getting avatar:", getError);
+      sendResponse({ success: false, error: getError.message });
+      return;
+    }
+
+    // Delete from storage
+    const fileName = avatar.file_name;
+    const { error: storageError } = await supabaseClient.storage
+      .from("avatars")
+      .remove([fileName]);
+
+    if (storageError) {
+      console.error("Error deleting from storage:", storageError);
+    }
+
+    // Delete from database
+    const { error: deleteError } = await supabaseClient
+      .from("user_avatars")
+      .delete()
+      .eq("id", avatarId)
+      .eq("user_id", user.id);
+
+    if (deleteError) {
+      console.error("Error deleting avatar:", deleteError);
+      sendResponse({ success: false, error: deleteError.message });
+      return;
+    }
+
+    // If deleted avatar was active, make the first remaining avatar active
+    if (avatar.is_active) {
+      const { data: remainingAvatars } = await supabaseClient
+        .from("user_avatars")
+        .select("id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (remainingAvatars && remainingAvatars.length > 0) {
+        await supabaseClient
+          .from("user_avatars")
+          .update({ is_active: true })
+          .eq("id", remainingAvatars[0].id);
+      }
+    }
+
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("Error deleting avatar:", error);
+    sendResponse({ success: false, error: error.message });
   }
 }
 
