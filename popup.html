@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drippler Extension</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Drippler</h1>
+        <p class="subtitle">Chrome Extension</p>
+      </header>
+
+      <main>
+        <div class="status-section">
+          <div class="status-indicator" id="statusIndicator">
+            <div class="status-dot"></div>
+            <span id="statusText">Connecting...</span>
+          </div>
+        </div>
+
+        <!-- Authentication Section -->
+        <div class="auth-section" id="authSection">
+          <!-- Login/Signup Forms (Hidden by default) -->
+          <div class="auth-forms" id="authForms" style="display: none">
+            <div class="form-tabs">
+              <button class="tab-btn active" id="loginTab">Login</button>
+              <button class="tab-btn" id="signupTab">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <form class="auth-form" id="loginForm">
+              <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <input
+                  type="email"
+                  id="loginEmail"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input
+                  type="password"
+                  id="loginPassword"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <button type="submit" class="btn primary full-width">
+                Sign In
+              </button>
+              <button
+                type="button"
+                class="btn secondary full-width"
+                id="forgotPasswordBtn"
+              >
+                Forgot Password?
+              </button>
+            </form>
+
+            <!-- Signup Form -->
+            <form class="auth-form" id="signupForm" style="display: none">
+              <div class="form-group">
+                <label for="signupEmail">Email</label>
+                <input
+                  type="email"
+                  id="signupEmail"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="signupPassword">Password</label>
+                <input
+                  type="password"
+                  id="signupPassword"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <button type="submit" class="btn primary full-width">
+                Create Account
+              </button>
+            </form>
+
+            <!-- Password Reset Form -->
+            <form class="auth-form" id="resetForm" style="display: none">
+              <div class="form-group">
+                <label for="resetEmail">Email</label>
+                <input
+                  type="email"
+                  id="resetEmail"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+              <button type="submit" class="btn primary full-width">
+                Send Reset Link
+              </button>
+              <button
+                type="button"
+                class="btn secondary full-width"
+                id="backToLoginBtn"
+              >
+                Back to Login
+              </button>
+            </form>
+
+            <!-- Update Password Form -->
+            <form
+              class="auth-form"
+              id="updatePasswordForm"
+              style="display: none"
+            >
+              <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="confirmNewPassword">Confirm New Password</label>
+                <input
+                  type="password"
+                  id="confirmNewPassword"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <button type="submit" class="btn primary full-width">
+                Update Password
+              </button>
+            </form>
+          </div>
+
+          <!-- User Dashboard (Shown when authenticated) -->
+          <div class="user-dashboard" id="userDashboard" style="display: none">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+              <button class="tab-btn active" data-tab="profile">
+                👤 Profile
+              </button>
+              <button class="tab-btn" data-tab="wardrobe">👕 Wardrobe</button>
+              <button class="tab-btn" data-tab="tryons">✨ Try-Ons</button>
+            </div>
+
+            <!-- Profile Tab -->
+            <div class="tab-content active" id="profileTab">
+              <div class="user-info">
+                <div class="user-avatar" id="userAvatar">
+                  <img id="profileImage" style="display: none" />
+                  <span id="userInitials">U</span>
+                  <div class="avatar-upload" id="avatarUpload">
+                    <span>📷</span>
+                  </div>
+                </div>
+                <div class="user-details">
+                  <div class="user-email" id="userEmail">user@example.com</div>
+                  <div class="user-status" id="userStatus">Verified</div>
+                </div>
+              </div>
+
+              <!-- Profile Image Upload -->
+              <input
+                type="file"
+                id="profileImageInput"
+                accept="image/*"
+                style="display: none"
+              />
+
+              <div class="profile-actions">
+                <button class="btn secondary full-width" id="changePasswordBtn">
+                  🔑 Change Password
+                </button>
+                <button class="btn danger full-width" id="deleteAccountBtn">
+                  🗑️ Delete Account
+                </button>
+                <button class="btn secondary full-width" id="signOutBtn">
+                  🚪 Sign Out
+                </button>
+              </div>
+            </div>
+
+            <!-- Wardrobe Tab -->
+            <div class="tab-content" id="wardrobeTab">
+              <div class="section-header">
+                <h3>My Wardrobe</h3>
+                <button class="btn small primary" id="addClothingBtn">
+                  + Add Item
+                </button>
+              </div>
+              <div class="clothing-grid" id="clothingGrid">
+                <div class="loading-message">Loading wardrobe...</div>
+              </div>
+
+              <!-- Clothing Upload Modal -->
+              <input
+                type="file"
+                id="clothingImageInput"
+                accept="image/*"
+                style="display: none"
+              />
+            </div>
+
+            <!-- Try-Ons Tab -->
+            <div class="tab-content" id="tryonsTab">
+              <div class="section-header">
+                <h3>Virtual Try-Ons</h3>
+                <button class="btn small secondary" id="refreshTryOnsBtn">
+                  🔄 Refresh
+                </button>
+              </div>
+              <div class="tryons-grid" id="tryonsGrid">
+                <div class="loading-message">Loading try-ons...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metadata Test Section (only shown when authenticated) -->
+        <div class="actions-section authenticated-only" style="display: none">
+          <div class="metadata-test-section">
+            <label for="customMessage" class="input-label"
+              >Custom Metadata Message:</label
+            >
+            <input
+              type="text"
+              id="customMessage"
+              class="metadata-input"
+              placeholder="Enter custom message..."
+              maxlength="200"
+            />
+            <button id="testWebAppBtn" class="btn secondary">
+              Test Token & Update Metadata
+            </button>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-item">
+            <span class="label">Extension ID:</span>
+            <span class="value" id="extensionId">Loading...</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Version:</span>
+            <span class="value">1.0.0</span>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        <div class="footer-links">
+          <a href="#" id="settingsLink">Settings</a>
+          <a href="#" id="helpLink">Help</a>
+        </div>
+      </footer>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
