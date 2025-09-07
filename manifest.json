@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Drippler Extension",
   "version": "1.0.0",
-  "description": "A Chrome extension with Supabase integration",
+  "description": "Drippler is your digital wardrobe assistant — preview outfits, mix and match, and save your perfect looks.",
   "permissions": [
     "storage",
     "activeTab",
@@ -11,11 +11,7 @@
     "contextMenus",
     "notifications"
   ],
-  "host_permissions": [
-    "https://*/*",
-    "http://localhost:*/*",
-    "http://127.0.0.1:*/*"
-  ],
+  "host_permissions": ["https://*/*", "https://drippler-web.vercel.app/"],
   "background": {
     "service_worker": "background.js"
   },
@@ -44,7 +40,16 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["lib/*"],
+      "resources": [
+        "lib/*",
+        "phosphor-regular.css",
+        "phosphor-bold.css",
+        "phosphor-fill.css",
+        "Phosphor.woff2",
+        "Phosphor.woff",
+        "Phosphor.ttf",
+        "Phosphor.svg"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

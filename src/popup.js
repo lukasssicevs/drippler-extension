@@ -1,5 +1,6 @@
 // Drippler Extension Popup with Supabase Integration
 import { createClient } from "@supabase/supabase-js";
+import { createIconHTML, IconNames, IconWeights } from "./icons.js";
 
 // Global state
 let currentUser = null;
@@ -816,9 +817,13 @@ function updateClothingButtonState(state) {
   switch (state) {
     case "loading":
       addClothingBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="spinning">
-          <path d="M12,4a8,8 0 0,1 7.89,6.7 1.53,1.53 0 0,0 1.49,1.3 1.5,1.5 0 0,0 1.48-1.75 11,11 0 0,0-21.72,0A1.5,1.5 0 0,0 2.62,11.25 1.53,1.53 0 0,0 4.11,10.7 8,8 0 0,1 12,4Z"/>
-        </svg>
+        ${createIconHTML(
+          IconNames.SPINNER,
+          16,
+          IconWeights.REGULAR,
+          "currentColor",
+          "spinning"
+        )}
         Uploading...
       `;
       addClothingBtn.disabled = true;
@@ -826,9 +831,12 @@ function updateClothingButtonState(state) {
       break;
     case "success":
       addClothingBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
-        </svg>
+        ${createIconHTML(
+          IconNames.CHECK,
+          16,
+          IconWeights.REGULAR,
+          "currentColor"
+        )}
         Success!
       `;
       addClothingBtn.disabled = true;
@@ -837,9 +845,12 @@ function updateClothingButtonState(state) {
     case "default":
     default:
       addClothingBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-        </svg>
+        ${createIconHTML(
+          IconNames.PLUS,
+          16,
+          IconWeights.REGULAR,
+          "currentColor"
+        )}
         Add Item
       `;
       addClothingBtn.disabled = false;
@@ -1295,9 +1306,13 @@ function updateAvatarButtonState(state) {
   switch (state) {
     case "loading":
       addAvatarBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="spinning">
-          <path d="M12,4a8,8 0 0,1 7.89,6.7 1.53,1.53 0 0,0 1.49,1.3 1.5,1.5 0 0,0 1.48-1.75 11,11 0 0,0-21.72,0A1.5,1.5 0 0,0 2.62,11.25 1.53,1.53 0 0,0 4.11,10.7 8,8 0 0,1 12,4Z"/>
-        </svg>
+        ${createIconHTML(
+          IconNames.SPINNER,
+          16,
+          IconWeights.REGULAR,
+          "currentColor",
+          "spinning"
+        )}
         Uploading...
       `;
       addAvatarBtn.disabled = true;
@@ -1305,9 +1320,12 @@ function updateAvatarButtonState(state) {
       break;
     case "success":
       addAvatarBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
-        </svg>
+        ${createIconHTML(
+          IconNames.CHECK,
+          16,
+          IconWeights.REGULAR,
+          "currentColor"
+        )}
         Success!
       `;
       addAvatarBtn.disabled = true;
@@ -1316,9 +1334,12 @@ function updateAvatarButtonState(state) {
     case "default":
     default:
       addAvatarBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-        </svg>
+        ${createIconHTML(
+          IconNames.PLUS,
+          16,
+          IconWeights.REGULAR,
+          "currentColor"
+        )}
         Add Avatar
       `;
       addAvatarBtn.disabled = false;

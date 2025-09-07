@@ -37,6 +37,36 @@ module.exports = {
         { from: "popup.html", to: "popup.html" },
         { from: "styles.css", to: "styles.css" },
         { from: "icons", to: "icons", noErrorOnMissing: true },
+        // Copy Phosphor Icons CSS
+        {
+          from: "node_modules/@phosphor-icons/web/src/regular/style.css",
+          to: "phosphor-regular.css",
+        },
+        {
+          from: "node_modules/@phosphor-icons/web/src/bold/style.css",
+          to: "phosphor-bold.css",
+        },
+        {
+          from: "node_modules/@phosphor-icons/web/src/fill/style.css",
+          to: "phosphor-fill.css",
+        },
+        // Copy Phosphor Icons Font Files
+        {
+          from: "node_modules/@phosphor-icons/web/src/regular/Phosphor.woff2",
+          to: "Phosphor.woff2",
+        },
+        {
+          from: "node_modules/@phosphor-icons/web/src/regular/Phosphor.woff",
+          to: "Phosphor.woff",
+        },
+        {
+          from: "node_modules/@phosphor-icons/web/src/regular/Phosphor.ttf",
+          to: "Phosphor.ttf",
+        },
+        {
+          from: "node_modules/@phosphor-icons/web/src/regular/Phosphor.svg",
+          to: "Phosphor.svg",
+        },
       ],
     }),
   ],

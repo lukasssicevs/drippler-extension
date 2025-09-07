@@ -5,6 +5,9 @@ import { createClient } from "@supabase/supabase-js";
 let supabaseClient = null;
 let isSupabaseConnected = false;
 
+// Backend API configuration
+const BACKEND_API_URL = "https://drippler-web.vercel.app";
+
 // Supabase configuration - Replace with your actual values
 const SUPABASE_CONFIG = {
   url: "https://jashmegsyjepwjcosrui.supabase.co", // Replace with your Supabase URL
@@ -511,7 +514,7 @@ async function handleSignUp(data, sendResponse) {
         password,
         options: {
           ...options,
-          emailRedirectTo: "http://localhost:3000/auth/verify",
+          emailRedirectTo: `${BACKEND_API_URL}/auth/verify`,
         },
       };
     } else if (phone) {
@@ -640,7 +643,7 @@ async function handleResetPassword(data, sendResponse) {
     const { email, redirectTo } = data;
 
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectTo || "http://localhost:3000/auth/reset-password",
+      redirectTo: redirectTo || `${BACKEND_API_URL}/auth/reset-password`,
     });
 
     if (error) throw error;
@@ -950,7 +953,7 @@ async function handleTestWebAppAPI(customMessage, sendResponse) {
     console.log("Custom message:", customMessage || "(none provided)");
 
     // Make API call to web app
-    const response = await fetch("http://localhost:3000/api/test-user", {
+    const response = await fetch(`${BACKEND_API_URL}/api/test-user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1991,10 +1994,10 @@ async function handleGenerateVirtualTryOn(data, sendResponse) {
 async function getWebappUrl() {
   try {
     const result = await chrome.storage.local.get("webappUrl");
-    return result.webappUrl || "http://localhost:3000"; // Default to localhost for development
+    return result.webappUrl || BACKEND_API_URL; // Default to production URL
   } catch (error) {
     console.warn("Failed to get webapp URL from storage, using default");
-    return "http://localhost:3000";
+    return BACKEND_API_URL;
   }
 }
 
