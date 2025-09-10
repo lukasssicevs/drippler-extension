@@ -622,6 +622,7 @@ body {
   overflow-y: auto;
   height: 100%; /* Use full available height */
   min-height: 0; /* Allow shrinking */
+  padding: 0 0 6px 0; /* Bottom padding for last item visibility */
 }
 
 /* Content area with empty state should not scroll and take full height */

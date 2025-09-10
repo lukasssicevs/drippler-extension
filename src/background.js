@@ -169,6 +169,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleAddAvatarFromUrl(request.data, sendResponse);
       break;
 
+    case "openPopup":
+      handleOpenPopup(sendResponse);
+      break;
+
     default:
       console.warn("Unknown action:", request.action);
       sendResponse({ success: false, error: "Unknown action" });
@@ -2646,6 +2650,17 @@ async function handleAddAvatarFromUrl(data, sendResponse) {
     sendResponse({ success: true, avatar });
   } catch (error) {
     console.error("Error adding avatar from URL:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Handle opening popup
+async function handleOpenPopup(sendResponse) {
+  try {
+    await chrome.action.openPopup();
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("Error opening popup:", error);
     sendResponse({ success: false, error: error.message });
   }
 }

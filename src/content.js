@@ -406,6 +406,447 @@ function setupDOMObservers() {
   });
 }
 
+// Setup image hover functionality
+function setupImageHoverFunctionality() {
+  console.log("Setting up image hover functionality");
+  
+  let hoverButton = null;
+  let currentImage = null;
+  
+  // Drip SVG icon
+  function getDripSVG() {
+    return `
+      <svg width="16" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g clip-path="url(#clip0_11_9967)">
+          <path d="M11.9189 0.00012207C12.0991 -0.00676403 12.2133 0.189436 12.1367 0.352661C10.5385 3.74319 15.1484 5.11788 15.1484 10.3507C15.1484 13.2933 12.5624 16.0001 8.79199 16.0001C5.02152 16.0001 1.96484 12.9151 1.96484 9.1095C1.96512 5.39051 6.12473 0.23292 11.9189 0.00012207ZM10.3955 1.46594C5.9971 3.29908 4.1642 6.2316 4.16406 9.5304C4.16406 10.9965 6.50426 12.412 8.73926 12.4122C10.9744 12.4122 12.5947 10.6298 12.5947 9.89661C12.5946 7.69763 11.495 6.23159 9.2959 3.66614C9.07228 3.40527 9.6624 2.19958 10.3955 1.46594Z" fill="currentColor"/>
+        </g>
+        <defs>
+          <clipPath id="clip0_11_9967">
+            <rect width="16" height="16" fill="white" transform="translate(0.964844)"/>
+          </clipPath>
+        </defs>
+      </svg>
+    `;
+  }
+  
+  // Create the hover button element
+  function createHoverButton() {
+    const button = document.createElement('div');
+    button.id = 'drippler-image-hover-btn';
+    button.innerHTML = `
+      <div class="drippler-hover-btn-content">
+        <div class="drippler-hover-btn-icon">
+          ${getDripSVG()}
+        </div>
+        <span class="drippler-hover-btn-text">Add to Drippler</span>
+      </div>
+    `;
+    
+    // Add styles
+    const styles = `
+      #drippler-image-hover-btn {
+        position: absolute;
+        background: #BD5DEE;
+        color: #FFFFFF;
+        border-radius: 8px;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        z-index: 999999;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        transition: all 0.15s ease;
+        pointer-events: auto;
+        display: none;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        overflow: visible;
+      }
+      
+      #drippler-image-hover-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+      }
+      
+      #drippler-image-hover-btn:active {
+        transform: translateY(0px);
+        transition: all 0.05s ease;
+      }
+      
+      .drippler-hover-btn-content {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        position: relative;
+        overflow: visible;
+      }
+      
+      .drippler-hover-btn-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        overflow: visible;
+        position: relative;
+      }
+      
+      .drippler-hover-btn-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+      
+      .drippler-hover-btn-text {
+        font-weight: 500;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      
+      @keyframes drippler-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+      }
+      
+      @keyframes drippler-drip {
+        0% { 
+          transform: translateY(0px) scaleY(1);
+          opacity: 1;
+        }
+        25% { 
+          transform: translateY(12px) scaleY(1.4);
+          opacity: 0.9;
+        }
+        50% { 
+          transform: translateY(24px) scaleY(1.7);
+          opacity: 0.7;
+        }
+        75% { 
+          transform: translateY(32px) scaleY(2.0);
+          opacity: 0.4;
+        }
+        100% { 
+          transform: translateY(0px) scaleY(1);
+          opacity: 1;
+        }
+      }
+      
+      @keyframes drippler-drip-subtle {
+        0%, 100% { 
+          transform: translateY(0px) scaleY(1);
+        }
+        50% { 
+          transform: translateY(6px) scaleY(1.15);
+        }
+      }
+      
+      .drippler-dripping {
+        animation: drippler-drip 0.9s ease-in-out infinite;
+      }
+      
+      .drippler-dripping-subtle {
+        animation: drippler-drip-subtle 2.5s ease-in-out infinite;
+      }
+      
+      .drippler-pulsing {
+        animation: drippler-pulse 1.5s ease-in-out infinite;
+      }
+    `;
+    
+    // Add styles to page if not already added
+    if (!document.getElementById('drippler-hover-styles')) {
+      const styleSheet = document.createElement('style');
+      styleSheet.id = 'drippler-hover-styles';
+      styleSheet.textContent = styles;
+      document.head.appendChild(styleSheet);
+    }
+    
+    // Add click handler
+    button.addEventListener('click', handleHoverButtonClick);
+    
+    document.body.appendChild(button);
+    return button;
+  }
+  
+  // Handle hover button click
+  async function handleHoverButtonClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!currentImage) return;
+    
+    console.log('Adding image to wardrobe:', currentImage.src);
+    
+    // Show loading state
+    const button = event.target.closest('#drippler-image-hover-btn');
+    const originalContent = button.innerHTML;
+    
+    // Check authentication first
+    try {
+      const authResponse = await chrome.runtime.sendMessage({
+        action: 'getCurrentUser'
+      });
+      
+      if (!authResponse.success || !authResponse.user) {
+        // User not authenticated - show login prompt
+        button.innerHTML = `
+          <div class="drippler-hover-btn-content">
+            <div class="drippler-hover-btn-icon">
+              ${getDripSVG()}
+            </div>
+            <span class="drippler-hover-btn-text">Sign In First</span>
+          </div>
+        `;
+        button.style.background = '#EF4444';
+        button.classList.add('drippler-pulsing');
+        
+        // Open extension popup for login
+        setTimeout(() => {
+          chrome.runtime.sendMessage({ action: 'openPopup' });
+          hideHoverButton();
+        }, 1000);
+        return;
+      }
+    } catch (authError) {
+      console.error('Error checking authentication:', authError);
+      // Show error and open popup as fallback
+      button.innerHTML = `
+        <div class="drippler-hover-btn-content">
+          <div class="drippler-hover-btn-icon">
+            ${getDripSVG()}
+          </div>
+          <span class="drippler-hover-btn-text">Please Sign In</span>
+        </div>
+      `;
+      button.style.background = '#F59E0B';
+      
+      setTimeout(() => {
+        chrome.runtime.sendMessage({ action: 'openPopup' });
+        hideHoverButton();
+      }, 1000);
+      return;
+    }
+    
+    // Show loading state
+    button.innerHTML = `
+      <div class="drippler-hover-btn-content">
+        <div class="drippler-hover-btn-icon">
+          ${getDripSVG()}
+        </div>
+        <span class="drippler-hover-btn-text">Adding Item...</span>
+      </div>
+    `;
+    button.style.pointerEvents = 'none';
+    
+    try {
+      // Send message to background script to save image
+      const response = await chrome.runtime.sendMessage({
+        action: 'saveImageAsClothing',
+        data: {
+          imageUrl: currentImage.src,
+          pageUrl: window.location.href,
+          pageTitle: document.title,
+          source: 'image_hover'
+        }
+      });
+      
+      if (response.success) {
+        // Show success state
+        button.innerHTML = `
+          <div class="drippler-hover-btn-content">
+            <div class="drippler-hover-btn-icon drippler-dripping">
+              ${getDripSVG()}
+            </div>
+            <span class="drippler-hover-btn-text">Item Added!</span>
+          </div>
+        `;
+        button.style.background = '#10B981';
+        
+        // Hide button after success with shorter delay
+        setTimeout(() => {
+          hideHoverButton();
+        }, 1200);
+      } else {
+        throw new Error(response.error || 'Failed to add image');
+      }
+    } catch (error) {
+      console.error('Error adding image to wardrobe:', error);
+      
+      // Show error state
+      button.innerHTML = `
+        <div class="drippler-hover-btn-content">
+          <div class="drippler-hover-btn-icon">
+            ${getDripSVG()}
+          </div>
+          <span class="drippler-hover-btn-text">Failed to Add</span>
+        </div>
+      `;
+      button.style.background = '#EF4444';
+      button.style.pointerEvents = 'auto';
+      
+      // Reset after showing error
+      setTimeout(() => {
+        hideHoverButton();
+      }, 1200);
+    }
+  }
+  
+  // Position the hover button
+  function positionHoverButton(image, button) {
+    const rect = image.getBoundingClientRect();
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // Position button in top-right corner of image
+    button.style.left = (rect.right - button.offsetWidth - 8 + scrollX) + 'px';
+    button.style.top = (rect.top + 8 + scrollY) + 'px';
+  }
+  
+  // Show hover button
+  function showHoverButton(image) {
+    if (!hoverButton) {
+      hoverButton = createHoverButton();
+    }
+    
+    currentImage = image;
+    hoverButton.style.display = 'block';
+    positionHoverButton(image, hoverButton);
+  }
+  
+  // Hide hover button
+  function hideHoverButton() {
+    if (hoverButton) {
+      hoverButton.style.display = 'none';
+      currentImage = null;
+      // Reset button to original state
+      resetHoverButton();
+    }
+  }
+  
+  // Reset hover button to original state
+  function resetHoverButton() {
+    if (hoverButton) {
+      hoverButton.innerHTML = `
+        <div class="drippler-hover-btn-content">
+          <div class="drippler-hover-btn-icon">
+            ${getDripSVG()}
+          </div>
+          <span class="drippler-hover-btn-text">Add to Drippler</span>
+        </div>
+      `;
+      hoverButton.style.background = '';
+      hoverButton.style.pointerEvents = 'auto';
+      hoverButton.classList.remove('drippler-pulsing', 'drippler-dripping', 'drippler-dripping-subtle');
+    }
+  }
+  
+  // Check if image is valid for adding to wardrobe
+  function isValidImage(img) {
+    // Skip very small images (likely icons)
+    if (img.width < 100 || img.height < 100) return false;
+    
+    // Skip if image doesn't have a valid src
+    if (!img.src || img.src.startsWith('data:')) return false;
+    
+    // Skip if image is part of Drippler extension UI
+    if (img.closest('#drippler-extension-ui') || 
+        img.closest('#drippler-quick-menu') ||
+        img.id === 'drippler-image-hover-btn') return false;
+    
+    return true;
+  }
+  
+  // Add event listeners to all images
+  function addImageListeners() {
+    const images = document.querySelectorAll('img');
+    
+    images.forEach(img => {
+      // Remove existing listeners to avoid duplicates
+      img.removeEventListener('mouseenter', handleImageHover);
+      img.removeEventListener('mouseleave', handleImageLeave);
+      
+      // Add new listeners
+      img.addEventListener('mouseenter', handleImageHover);
+      img.addEventListener('mouseleave', handleImageLeave);
+    });
+  }
+  
+  // Handle image hover
+  function handleImageHover(event) {
+    const img = event.target;
+    
+    if (!isValidImage(img)) return;
+    
+    // Delay showing button slightly to avoid flickering
+    setTimeout(() => {
+      if (img.matches(':hover')) {
+        showHoverButton(img);
+      }
+    }, 200);
+  }
+  
+  // Handle image leave
+  function handleImageLeave(event) {
+    // Delay hiding to allow moving to button
+    setTimeout(() => {
+      const button = document.getElementById('drippler-image-hover-btn');
+      if (button && !button.matches(':hover') && !event.target.matches(':hover')) {
+        hideHoverButton();
+      }
+    }, 100);
+  }
+  
+  // Initial setup
+  addImageListeners();
+  
+  // Watch for new images added to the page
+  const observer = new MutationObserver((mutations) => {
+    let newImages = false;
+    
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.tagName === 'IMG') {
+              newImages = true;
+            } else if (node.querySelectorAll && node.querySelectorAll('img').length > 0) {
+              newImages = true;
+            }
+          }
+        });
+      }
+    });
+    
+    if (newImages) {
+      // Debounce to avoid excessive calls
+      clearTimeout(addImageListeners.timeout);
+      addImageListeners.timeout = setTimeout(addImageListeners, 500);
+    }
+  });
+  
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  // Handle scroll to reposition button
+  let scrollTimeout;
+  window.addEventListener('scroll', () => {
+    if (hoverButton && currentImage && hoverButton.style.display === 'block') {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        if (currentImage.matches(':hover')) {
+          positionHoverButton(currentImage, hoverButton);
+        } else {
+          hideHoverButton();
+        }
+      }, 100);
+    }
+  });
+  
+  console.log('Image hover functionality setup complete');
+}
+
 // Setup page-specific functionality
 function setupPageFunctionality() {
   // Add page-specific logic here based on the current site
@@ -438,6 +879,7 @@ function setupStackOverflowFunctionality() {
 function setupGeneralFunctionality() {
   console.log("Setting up general functionality");
   // Add general features here
+  setupImageHoverFunctionality();
 }
 
 // Check Supabase connection
