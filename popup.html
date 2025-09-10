@@ -12,11 +12,11 @@
   <body>
     <div class="container">
       <!-- Header -->
-      <header class="header">
+      <header class="header" id="dashboardHeader" style="display: none">
         <div class="logo">
-          <h1>✨ Drippler</h1>
+          <img src="assets/header.svg" alt="Drippler" class="header-logo" />
         </div>
-        <div class="header-user" id="headerUser" style="display: none">
+        <div class="header-user" id="headerUser">
           <div class="header-avatar" id="headerAvatar">
             <img id="headerProfileImage" style="display: none" />
             <span id="headerUserInitials">U</span>
@@ -28,13 +28,22 @@
       <main class="main-content">
         <!-- Authentication Forms -->
         <div class="auth-section" id="authForms" style="display: none">
-          <div class="auth-container">
-            <!-- Auth Tabs -->
-            <div class="auth-tabs">
-              <button class="auth-tab active" id="loginTab">Sign In</button>
-              <button class="auth-tab" id="signupTab">Sign Up</button>
-            </div>
+          <!-- Auth Tabs -->
+          <div class="auth-tabs">
+            <button class="auth-tab active" id="loginTab">Sign In</button>
+            <button class="auth-tab" id="signupTab">Sign Up</button>
+          </div>
 
+          <!-- Welcome SVG -->
+          <div class="welcome-container">
+            <img
+              src="assets/welcome.svg"
+              alt="Welcome to Drippler"
+              class="welcome-svg"
+            />
+          </div>
+
+          <div class="auth-container">
             <!-- Login Form -->
             <form class="auth-form" id="loginForm">
               <div class="form-group">
@@ -143,9 +152,27 @@
         <div class="dashboard" id="userDashboard" style="display: none">
           <!-- Tab Navigation -->
           <div class="tab-navigation">
-            <button class="tab-btn active" data-tab="avatars">Avatars</button>
-            <button class="tab-btn" data-tab="wardrobe">Wardrobe</button>
-            <button class="tab-btn" data-tab="tryons">Try-Ons</button>
+            <button class="tab-btn active" data-tab="avatars">
+              <i
+                class="ph ph-user"
+                style="font-size: 16px; margin-right: 6px"
+              ></i>
+              Avatars
+            </button>
+            <button class="tab-btn" data-tab="wardrobe">
+              <i
+                class="ph ph-cowboy-hat"
+                style="font-size: 16px; margin-right: 6px"
+              ></i>
+              Wardrobe
+            </button>
+            <button class="tab-btn" data-tab="tryons">
+              <i
+                class="ph ph-sparkle"
+                style="font-size: 16px; margin-right: 6px"
+              ></i>
+              Try-Ons
+            </button>
           </div>
 
           <!-- Tab Content Container -->
@@ -153,42 +180,16 @@
             <!-- Avatars Tab -->
             <div class="tab-content active" id="avatarsTab">
               <div class="section-header">
-                <h3>My Avatars</h3>
                 <button class="btn primary small" id="addAvatarBtn">
                   <i class="ph ph-plus" style="font-size: 16px"></i>
                   Add Avatar
                 </button>
-              </div>
-              <!-- Active Avatar Display - Outside content-area to stay static -->
-              <div
-                class="active-avatar-section"
-                id="activeAvatarSection"
-                style="display: none"
-              >
-                <div class="active-avatar-container">
-                  <div class="active-avatar-frame">
-                    <img
-                      id="activeAvatarImage"
-                      src=""
-                      alt="Active Avatar"
-                      class="active-avatar-img"
-                    />
-                    <div class="active-avatar-badge">✓ Active</div>
-                  </div>
-                  <div class="active-avatar-info">
-                    <h4>Current Avatar</h4>
-                    <p>This avatar is used for virtual try-ons</p>
-                  </div>
-                </div>
               </div>
 
               <!-- Scrollable Content Area -->
               <div class="content-area">
                 <!-- Avatar Selection Grid -->
                 <div class="avatar-selection-section">
-                  <h4 class="selection-title" id="selectionTitle">
-                    Choose Your Avatar
-                  </h4>
                   <div class="avatars-grid" id="avatarsGrid">
                     <div class="empty-state">
                       <div class="empty-icon">
@@ -229,7 +230,6 @@
             <!-- Wardrobe Tab -->
             <div class="tab-content" id="wardrobeTab">
               <div class="section-header">
-                <h3>My Wardrobe</h3>
                 <button class="btn primary small" id="addClothingBtn">
                   <i class="ph ph-plus" style="font-size: 16px"></i>
                   Add Item
@@ -278,7 +278,6 @@
             <!-- Try-Ons Tab -->
             <div class="tab-content" id="tryonsTab">
               <div class="section-header">
-                <h3>Try-On History</h3>
                 <button class="btn secondary small" id="refreshTryOnsBtn">
                   <i class="ph ph-arrow-clockwise" style="font-size: 16px"></i>
                   Refresh
@@ -323,16 +322,12 @@
     <div class="profile-modal" id="profileModal" style="display: none">
       <div class="profile-modal-content">
         <div class="profile-modal-header">
-          <h3>Profile Settings</h3>
           <button class="close-btn" id="closeProfileModal">×</button>
         </div>
         <div class="profile-modal-body">
           <div class="profile-modal-user">
             <div class="profile-modal-info">
               <h3 id="modalUserEmail">user@example.com</h3>
-              <span class="profile-modal-badge" id="modalUserStatus"
-                >Verified</span
-              >
             </div>
           </div>
 
@@ -350,13 +345,13 @@
           </div>
 
           <div class="profile-modal-actions">
-            <button class="action-btn danger" id="modalDeleteAccountBtn">
-              <i class="ph ph-trash" style="font-size: 18px"></i>
-              Delete Account
-            </button>
             <button class="action-btn" id="modalSignOutBtn">
               <i class="ph ph-sign-out" style="font-size: 18px"></i>
               Sign Out
+            </button>
+            <button class="action-btn danger" id="modalDeleteAccountBtn">
+              <i class="ph ph-minus" style="font-size: 18px"></i>
+              Delete Account
             </button>
           </div>
         </div>

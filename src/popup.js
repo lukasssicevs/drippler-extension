@@ -423,7 +423,9 @@ function setupAuthEventListeners() {
   // Tab navigation listeners
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
-      const tabName = e.target.dataset.tab;
+      // Handle clicks on both button and icon elements
+      const target = e.target.closest(".tab-btn");
+      const tabName = target.dataset.tab;
       switchTab(tabName);
     });
   });
@@ -433,10 +435,7 @@ function setupAuthEventListeners() {
     .getElementById("refreshTryOnsBtn")
     ?.addEventListener("click", loadTryOnGenerations);
 
-  // Header avatar click to open profile modal
-  document
-    .getElementById("headerAvatar")
-    ?.addEventListener("click", openProfileModal);
+  // Profile modal event listener is now set up in updateAuthState() when dashboard is shown
 
   // Profile modal listeners
   document
@@ -752,6 +751,7 @@ function updateAuthState() {
   const container = document.querySelector(".container");
   const authForms = document.getElementById("authForms");
   const userDashboard = document.getElementById("userDashboard");
+  const dashboardHeader = document.getElementById("dashboardHeader");
   const actionsSection = document.querySelector(".actions-section");
 
   if (isAuthenticated && currentUser) {
@@ -760,6 +760,10 @@ function updateAuthState() {
     container.classList.remove("unauthenticated");
     authForms.style.display = "none";
     userDashboard.style.display = "block";
+    dashboardHeader.style.display = "flex";
+
+    // Setup profile modal event listener when dashboard is shown
+    setupProfileModalListener();
 
     // Hide metadata test section (removed from new design)
     if (actionsSection) {
@@ -787,6 +791,7 @@ function updateAuthState() {
     container.classList.remove("authenticated");
     authForms.style.display = "block";
     userDashboard.style.display = "none";
+    dashboardHeader.style.display = "none";
 
     // Hide metadata test section
     if (actionsSection) {
@@ -895,20 +900,17 @@ function showClothingUploadModal(file) {
   modal.innerHTML = `
     <div class="clothing-upload-content">
       <div class="clothing-upload-header">
-        <h3>Add Clothing Item</h3>
         <button class="close-btn" id="closeClothingModal">×</button>
       </div>
       <div class="clothing-upload-body">
         <img src="${previewUrl}" class="image-preview" alt="Preview" />
-        <div class="clothing-form-group">
-          <label for="clothingName">Item Name / Comments</label>
-          <input type="text" id="clothingName" placeholder="e.g., Blue Denim Jacket or any notes about this item" />
-        </div>
-        <div class="clothing-form-actions">
-          <button class="btn secondary" id="cancelClothingUpload">Cancel</button>
-          <button class="btn primary" id="confirmClothingUpload">Add to Wardrobe</button>
-        </div>
       </div>
+        <div class="clothing-form-actions">
+          <input type="text" id="clothingName" placeholder="e.g., Blue Denim Jacket or any notes about this item" />
+          <button class="btn primary" id="confirmClothingUpload">
+            <i class="ph ph-check" style="font-size: 16px;"></i>
+          </button>
+        </div>
     </div>
   `;
 
@@ -921,11 +923,6 @@ function showClothingUploadModal(file) {
   });
 
   modal.querySelector("#closeClothingModal").addEventListener("click", () => {
-    URL.revokeObjectURL(previewUrl);
-    modal.remove();
-  });
-
-  modal.querySelector("#cancelClothingUpload").addEventListener("click", () => {
     URL.revokeObjectURL(previewUrl);
     modal.remove();
   });
@@ -948,10 +945,7 @@ function showClothingUploadModal(file) {
         const confirmBtn = modal.querySelector("#confirmClothingUpload");
         confirmBtn.disabled = true;
         confirmBtn.innerHTML = `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="spinning">
-            <path d="M12,4a8,8 0 0,1 7.89,6.7 1.53,1.53 0 0,0 1.49,1.3 1.5,1.5 0 0,0 1.48-1.75 11,11 0 0,0-21.72,0A1.5,1.5 0 0,0 2.62,11.25 1.53,1.53 0 0,0 4.11,10.7 8,8 0 0,1 12,4Z"/>
-          </svg>
-          Adding...
+          <i class="ph ph-spinner" style="font-size: 16px; animation: spin 1s linear infinite"></i>
         `;
 
         // Convert file to base64 for safer transmission
@@ -983,10 +977,7 @@ function showClothingUploadModal(file) {
         if (response.success) {
           // Update modal button to success
           confirmBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
-            </svg>
-            Added!
+            <i class="ph ph-check" style="font-size: 16px;"></i>
           `;
 
           // Update main button to success
@@ -1019,10 +1010,7 @@ function showClothingUploadModal(file) {
         const confirmBtn = modal.querySelector("#confirmClothingUpload");
         confirmBtn.disabled = false;
         confirmBtn.innerHTML = `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-          </svg>
-          Add to Wardrobe
+          <i class="ph ph-check" style="font-size: 16px;"></i>
         `;
       }
     });
@@ -1098,16 +1086,14 @@ function displayClothingItems(items) {
     .map(
       (item) => `
     <div class="clothing-item" data-item-id="${item.id}">
-      <img src="${item.image_url}" alt="${item.name}" loading="lazy" />
+      <img src="${item.image_url}" alt="${item.name}" loading="lazy" class="clothing-image" />
       <div class="clothing-item-overlay">
-        <div class="clothing-item-name">${item.name}</div>
-      </div>
-      <div class="clothing-item-actions">
         <button class="clothing-action-btn try-on" data-action="try-on" data-item-id="${item.id}" title="Try On">
-          👤
+          <i class="ph ph-magic-wand" style="font-size: 14px; margin-right: 6px"></i>
+          Generate
         </button>
         <button class="clothing-action-btn delete" data-action="delete" data-item-id="${item.id}" title="Delete">
-          🗑️
+          <i class="ph ph-minus" style="font-size: 14px"></i>
         </button>
       </div>
     </div>
@@ -1163,6 +1149,18 @@ async function tryOnClothingItem(itemId) {
   try {
     console.log("Trying on clothing item:", itemId);
 
+    // Get the specific generate button and show loading state
+    const generateButton = document.querySelector(
+      `[data-item-id="${itemId}"][data-action="try-on"]`
+    );
+    if (generateButton) {
+      generateButton.disabled = true;
+      generateButton.innerHTML = `
+        <i class="ph ph-spinner" style="font-size: 14px; margin-right: 6px; animation: spin 1s linear infinite"></i>
+        Generating...
+      `;
+    }
+
     // Get the clothing item details
     const clothingResponse = await chrome.runtime.sendMessage({
       action: "getClothingItems",
@@ -1170,6 +1168,7 @@ async function tryOnClothingItem(itemId) {
 
     if (!clothingResponse.success) {
       showError("Failed to load clothing item");
+      resetGenerateButton(itemId);
       return;
     }
 
@@ -1178,6 +1177,7 @@ async function tryOnClothingItem(itemId) {
     );
     if (!clothingItem) {
       showError("Clothing item not found");
+      resetGenerateButton(itemId);
       return;
     }
 
@@ -1190,6 +1190,7 @@ async function tryOnClothingItem(itemId) {
       showError(
         "Please upload and select an avatar first to use virtual try-on!"
       );
+      resetGenerateButton(itemId);
       return;
     }
 
@@ -1229,6 +1230,22 @@ async function tryOnClothingItem(itemId) {
     console.error("Error with virtual try-on:", error);
     showError("Error generating virtual try-on: " + error.message);
     updateStatus("authenticated", "Authenticated");
+  } finally {
+    // Always reset the button state
+    resetGenerateButton(itemId);
+  }
+}
+
+function resetGenerateButton(itemId) {
+  const generateButton = document.querySelector(
+    `[data-item-id="${itemId}"][data-action="try-on"]`
+  );
+  if (generateButton) {
+    generateButton.disabled = false;
+    generateButton.innerHTML = `
+      <i class="ph ph-magic-wand" style="font-size: 14px; margin-right: 6px"></i>
+      Generate
+    `;
   }
 }
 
@@ -1238,32 +1255,22 @@ function showTryOnResult(resultData) {
   modal.className = "try-on-result-modal";
 
   modal.innerHTML = `
-    <div class="try-on-result-content">
-      <div class="try-on-result-header">
-        <h3>Virtual Try-On Result</h3>
+    <div class="try-on-view-content">
+      <div class="try-on-view-header">
         <button class="close-btn" id="closeTryOnResult">×</button>
       </div>
-      <div class="try-on-result-body">
-        <img src="${
-          resultData.generatedImageUrl
-        }" alt="Virtual Try-On Result" class="try-on-result-image" />
-        <div class="try-on-result-info">
-          <p><strong>Generations used:</strong> ${
-            resultData.generationCount || 0
-          } / ${resultData.maxGenerations || 15}</p>
-          <p><strong>Remaining:</strong> ${
-            resultData.remainingGenerations || 0
-          }</p>
-          ${
-            resultData.remainingGenerations === 0
-              ? '<p class="warning">⚠️ You have reached the free generation limit!</p>'
-              : ""
-          }
-        </div>
+      <div class="try-on-view-body">
+        <img src="${resultData.generatedImageUrl}" alt="Virtual Try-On Result" class="try-on-view-image" />
       </div>
-      <div class="try-on-result-actions">
-        <button class="btn secondary" id="downloadTryOnResult">Download</button>
-        <button class="btn primary" id="closeTryOnResultBtn">Close</button>
+      <div class="try-on-view-actions">
+        <button class="btn primary" id="downloadTryOnResult">
+          <i class="ph ph-download" style="font-size: 16px; margin-right: 8px"></i>
+          Download
+        </button>
+        <button class="btn secondary" id="addAsAvatarBtn">
+          <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px"></i>
+          Add as Avatar
+        </button>
       </div>
     </div>
   `;
@@ -1279,7 +1286,9 @@ function showTryOnResult(resultData) {
     modal.remove();
   });
 
-  modal.querySelector("#closeTryOnResultBtn").addEventListener("click", () => {
+  modal.querySelector("#addAsAvatarBtn").addEventListener("click", () => {
+    // TODO: Implement add as avatar functionality
+    console.log("Add as avatar clicked");
     modal.remove();
   });
 
@@ -1403,30 +1412,15 @@ async function handleAvatarFileUpload(event) {
 
 async function loadAvatars() {
   const avatarsGrid = document.getElementById("avatarsGrid");
-  const activeAvatarSection = document.getElementById("activeAvatarSection");
-  const selectionTitle = document.getElementById("selectionTitle");
 
   try {
     const response = await chrome.runtime.sendMessage({
       action: "getAvatars",
     });
 
-    if (response.success && response.avatars && response.avatars.length > 0) {
-      const activeAvatar = response.avatars.find((avatar) => avatar.is_active);
-
-      // Show active avatar section if there's an active avatar
-      if (activeAvatar) {
-        displayActiveAvatar(activeAvatar);
-        activeAvatarSection.style.display = "block";
-        selectionTitle.textContent = "Change Avatar";
-      } else {
-        activeAvatarSection.style.display = "none";
-        selectionTitle.textContent = "Choose Your Avatar";
-      }
-
+    if (response.success) {
       displayAvatars(response.avatars);
     } else {
-      activeAvatarSection.style.display = "none";
       const contentArea = avatarsGrid.closest(".content-area");
       const avatarSelectionSection = document.querySelector(
         ".avatar-selection-section"
@@ -1448,10 +1442,8 @@ async function loadAvatars() {
           <p>Upload photos of yourself to use for virtual try-ons. Your active avatar will be used to generate realistic clothing previews.</p>
           <div class="empty-action">
             <button class="btn primary" data-action="add-avatar">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-              </svg>
-              Upload Photo
+              <i class="ph ph-plus" style="font-size: 16px; margin-right: 6px"></i>
+              Add Avatar
             </button>
           </div>
         </div>
@@ -1459,7 +1451,6 @@ async function loadAvatars() {
     }
   } catch (error) {
     console.error("Error loading avatars:", error);
-    activeAvatarSection.style.display = "none";
     const contentArea = avatarsGrid.closest(".content-area");
     const avatarSelectionSection = document.querySelector(
       ".avatar-selection-section"
@@ -1484,11 +1475,6 @@ async function loadAvatars() {
   }
 }
 
-function displayActiveAvatar(avatar) {
-  const activeAvatarImage = document.getElementById("activeAvatarImage");
-  activeAvatarImage.src = avatar.image_url;
-}
-
 function displayAvatars(avatars) {
   const avatarsGrid = document.getElementById("avatarsGrid");
   const contentArea = avatarsGrid.closest(".content-area");
@@ -1496,32 +1482,25 @@ function displayAvatars(avatars) {
     ".avatar-selection-section"
   );
 
-  // Filter out the active avatar from the grid since it's shown at the top
-  const inactiveAvatars = avatars.filter((avatar) => !avatar.is_active);
-
-  if (inactiveAvatars.length === 0) {
+  if (avatars.length === 0) {
     // Add classes for empty state styling
     avatarsGrid.classList.add("empty-grid");
     contentArea.classList.add("empty-content");
-    contentArea.classList.add("add-more-mode"); // Special class for "add more" scenario
     avatarSelectionSection.classList.add("empty-section");
 
-    // If only one avatar (the active one), show a message
     avatarsGrid.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M7.07,18.28C7.5,17.38 10.12,16.5 12,16.5C13.88,16.5 16.5,17.38 16.93,18.28C15.57,19.36 13.86,20 12,20C10.14,20 8.43,19.36 7.07,18.28M18.36,16.83C16.93,15.09 13.46,14.5 12,14.5C10.54,14.5 7.07,15.09 5.64,16.83C4.62,15.5 4,13.82 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,13.82 19.38,15.5 18.36,16.83M12,6C10.06,6 8.5,7.56 8.5,9.5C8.5,11.44 10.06,13 12,13C13.94,13 15.5,11.44 15.5,9.5C15.5,7.56 13.94,6 12,6M12,11A1.5,1.5 0 0,1 10.5,9.5A1.5,1.5 0 0,1 12,8A1.5,1.5 0 0,1 13.5,9.5A1.5,1.5 0 0,1 12,11Z"/>
           </svg>
         </div>
-        <h3>Add More Avatars</h3>
-        <p>Upload additional photos to have multiple avatar options for your try-ons.</p>
+        <h3>Add Your First Avatar</h3>
+        <p>Upload photos of yourself to use for virtual try-ons. Your active avatar will be used to generate realistic clothing previews.</p>
         <div class="empty-action">
           <button class="btn primary" data-action="add-avatar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-            </svg>
-            Add Another Photo
+            <i class="ph ph-plus" style="font-size: 16px; margin-right: 6px"></i>
+            Add Avatar
           </button>
         </div>
       </div>
@@ -1529,13 +1508,37 @@ function displayAvatars(avatars) {
     return;
   }
 
-  // Remove empty state classes when showing items
+  // Remove empty state classes
   avatarsGrid.classList.remove("empty-grid");
   contentArea.classList.remove("empty-content");
-  contentArea.classList.remove("add-more-mode"); // Remove add-more mode
   avatarSelectionSection.classList.remove("empty-section");
 
-  avatarsGrid.innerHTML = inactiveAvatars
+  // Find active avatar
+  const activeAvatar = avatars.find((avatar) => avatar.is_active);
+  const inactiveAvatars = avatars.filter((avatar) => !avatar.is_active);
+
+  let gridHTML = "";
+
+  // Add active avatar first (spans both columns)
+  if (activeAvatar) {
+    gridHTML += `
+      <div class="avatar-item active-avatar" data-avatar-id="${activeAvatar.id}">
+        <img src="${activeAvatar.image_url}" alt="Active Avatar" class="avatar-image" />
+        <div class="avatar-badge">
+          <i class="ph ph-user" style="font-size: 12px"></i>
+          Active Avatar
+        </div>
+        <div class="avatar-overlay">
+          <button class="avatar-action-btn delete" title="Delete Avatar" data-action="delete" data-avatar-id="${activeAvatar.id}">
+            <i class="ph ph-minus" style="font-size: 14px"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Add inactive avatars
+  gridHTML += inactiveAvatars
     .map(
       (avatar, index) => `
     <div class="avatar-item" data-avatar-id="${avatar.id}">
@@ -1546,18 +1549,21 @@ function displayAvatars(avatars) {
         <button class="avatar-action-btn select" title="Set as Active" data-action="select" data-avatar-id="${
           avatar.id
         }">
-          ✓
+          <i class="ph ph-user-check" style="font-size: 14px; margin-right: 6px"></i>
+          Set Active
         </button>
         <button class="avatar-action-btn delete" title="Delete Avatar" data-action="delete" data-avatar-id="${
           avatar.id
         }">
-          🗑️
+          <i class="ph ph-minus" style="font-size: 14px"></i>
         </button>
       </div>
     </div>
   `
     )
     .join("");
+
+  avatarsGrid.innerHTML = gridHTML;
 
   // Add event listeners for avatar actions
   avatarsGrid.addEventListener("click", handleAvatarGridClick);
@@ -1668,13 +1674,9 @@ async function loadActiveAvatarToElement(imgElement, initialsElement) {
 
 function updateModalUserInfo() {
   const modalUserEmail = document.getElementById("modalUserEmail");
-  const modalUserStatus = document.getElementById("modalUserStatus");
 
   if (currentUser) {
     modalUserEmail.textContent = currentUser.email || "Unknown";
-    modalUserStatus.textContent = currentUser.email_confirmed_at
-      ? "Verified"
-      : "Unverified";
 
     // Load generation stats
     loadGenerationStats();
@@ -1719,11 +1721,39 @@ async function loadGenerationStats() {
 // Old profile image function removed - using avatar system now
 
 // Profile modal functions
+function setupProfileModalListener() {
+  const headerAvatar = document.getElementById("headerAvatar");
+  console.log(
+    "Setting up profile modal listener, header avatar element:",
+    headerAvatar
+  );
+  if (headerAvatar) {
+    // Remove any existing event listeners
+    headerAvatar.replaceWith(headerAvatar.cloneNode(true));
+    const newHeaderAvatar = document.getElementById("headerAvatar");
+
+    newHeaderAvatar.addEventListener("click", () => {
+      console.log("Profile avatar clicked!");
+      openProfileModal();
+    });
+    console.log("Profile modal listener attached successfully");
+  } else {
+    console.error(
+      "Header avatar element not found when setting up profile modal listener!"
+    );
+  }
+}
+
 function openProfileModal() {
+  console.log("openProfileModal called");
   const profileModal = document.getElementById("profileModal");
+  console.log("Profile modal element:", profileModal);
   if (profileModal) {
     updateModalUserInfo(); // Refresh modal data
     profileModal.style.display = "flex";
+    console.log("Profile modal opened");
+  } else {
+    console.error("Profile modal element not found!");
   }
 }
 
@@ -1836,22 +1866,14 @@ function displayTryOnGenerations(generations) {
     .map(
       (generation) => `
     <div class="tryon-item" data-generation-id="${generation.id}">
-      <img src="${
-        generation.generated_image_url
-      }" alt="Virtual Try-On" loading="lazy" />
+      <img src="${generation.generated_image_url}" alt="Virtual Try-On" loading="lazy" class="tryon-image" />
       <div class="tryon-item-overlay">
-        <div class="tryon-item-date">${formatDate(generation.created_at)}</div>
-      </div>
-      <div class="tryon-item-actions">
-        <button class="tryon-action-btn download" data-action="download" data-image-url="${
-          generation.generated_image_url
-        }" title="Download">
-          ⬇️
+        <button class="tryon-action-btn download" data-action="download" data-image-url="${generation.generated_image_url}" title="Download">
+          <i class="ph ph-download" style="font-size: 14px; margin-right: 6px"></i>
+          Download
         </button>
-        <button class="tryon-action-btn delete" data-action="delete" data-item-id="${
-          generation.id
-        }" title="Delete">
-          🗑️
+        <button class="tryon-action-btn delete" data-action="delete" data-item-id="${generation.id}" title="Delete">
+          <i class="ph ph-minus" style="font-size: 14px"></i>
         </button>
       </div>
     </div>
@@ -1901,16 +1923,21 @@ function showFullSizeTryOn(imageUrl) {
   modal.innerHTML = `
     <div class="try-on-view-content">
       <div class="try-on-view-header">
-        <h3>Virtual Try-On</h3>
         <button class="close-btn" id="closeTryOnView">×</button>
       </div>
       <div class="try-on-view-body">
         <img src="${imageUrl}" alt="Virtual Try-On" class="try-on-view-image" />
       </div>
-      <div class="try-on-view-actions">
-        <button class="btn primary" onclick="downloadImage('${imageUrl}')">Download</button>
-        <button class="btn secondary" id="closeTryOnViewBtn">Close</button>
-      </div>
+        <div class="try-on-view-actions">
+          <button class="btn primary" id="downloadFromViewBtn">
+            <i class="ph ph-download" style="font-size: 16px; margin-right: 8px"></i>
+            Download
+          </button>
+          <button class="btn secondary" id="addAsAvatarFromViewBtn">
+            <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px"></i>
+            Add as Avatar
+          </button>
+        </div>
     </div>
   `;
 
@@ -1922,9 +1949,17 @@ function showFullSizeTryOn(imageUrl) {
     modal.remove();
   });
 
-  modal.querySelector("#closeTryOnViewBtn").addEventListener("click", () => {
-    modal.remove();
+  modal.querySelector("#downloadFromViewBtn").addEventListener("click", () => {
+    downloadImage(imageUrl);
   });
+
+  modal
+    .querySelector("#addAsAvatarFromViewBtn")
+    .addEventListener("click", () => {
+      // TODO: Implement add as avatar functionality
+      console.log("Add as avatar from view clicked");
+      modal.remove();
+    });
 
   document.body.appendChild(modal);
 }

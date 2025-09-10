@@ -86,14 +86,14 @@ function createExtensionUI() {
         .drippler-floating-btn {
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #BD5DEE;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: #FFFFFF;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
         }
         
@@ -187,12 +187,13 @@ function showQuickMenu() {
         }
         
         .drippler-menu-content {
-            background: white;
+            background: #0E0D0D;
             border-radius: 8px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             min-width: 200px;
             overflow: hidden;
             animation: drippler-fadeIn 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         @keyframes drippler-fadeIn {
@@ -201,19 +202,20 @@ function showQuickMenu() {
         }
         
         .drippler-menu-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #0E0D0D;
+            color: #FFFFFF;
             padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             font-weight: 500;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .drippler-close-btn {
             background: none;
             border: none;
-            color: white;
+            color: #FFFFFF;
             font-size: 20px;
             cursor: pointer;
             padding: 0;
@@ -233,10 +235,11 @@ function showQuickMenu() {
             cursor: pointer;
             transition: background-color 0.2s ease;
             font-size: 14px;
+            color: #FFFFFF;
         }
         
         .drippler-menu-item:hover {
-            background-color: #f8f9fa;
+            background-color: rgba(255, 255, 255, 0.1);
         }
     `;
 
@@ -477,13 +480,11 @@ function updateUIForAuthState(authData) {
   // Update button appearance based on auth state
   if (authData.user) {
     // User is authenticated
-    button.style.background =
-      "linear-gradient(135deg, #28a745 0%, #20c997 100%)";
+    button.style.background = "#BD5DEE";
     button.title = `Drippler Extension - Signed in as ${authData.user.email}`;
   } else {
     // User is not authenticated
-    button.style.background =
-      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+    button.style.background = "#BD5DEE";
     button.title = "Drippler Extension - Sign in required";
   }
 }

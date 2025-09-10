@@ -37,6 +37,7 @@ module.exports = {
         { from: "popup.html", to: "popup.html" },
         { from: "styles.css", to: "styles.css" },
         { from: "icons", to: "icons", noErrorOnMissing: true },
+        { from: "assets", to: "assets", noErrorOnMissing: true },
         // Copy Phosphor Icons CSS
         {
           from: "node_modules/@phosphor-icons/web/src/regular/style.css",
