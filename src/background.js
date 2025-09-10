@@ -165,6 +165,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case "deleteAvatar":
       handleDeleteAvatar(request.avatarId, sendResponse);
       break;
+    case "addAvatarFromUrl":
+      handleAddAvatarFromUrl(request.data, sendResponse);
+      break;
 
     default:
       console.warn("Unknown action:", request.action);
@@ -2598,6 +2601,51 @@ async function handleDeleteAvatar(avatarId, sendResponse) {
     sendResponse({ success: true });
   } catch (error) {
     console.error("Error deleting avatar:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Add avatar from URL (for try-on results already in Supabase)
+async function handleAddAvatarFromUrl(data, sendResponse) {
+  try {
+    if (!supabaseClient) {
+      sendResponse({ success: false, error: "Supabase not initialized" });
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+      sendResponse({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    console.log("Adding avatar from URL for user:", user.id);
+
+    // Create avatar record in database with the URL
+    const { data: avatar, error: insertError } = await supabaseClient
+      .from("user_avatars")
+      .insert({
+        user_id: user.id,
+        image_url: data.imageUrl,
+        file_name: `avatar-from-tryon-${Date.now()}.jpg`, // Virtual filename for consistency
+        is_active: false, // New avatars are not active by default
+        created_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Error creating avatar record:", insertError);
+      sendResponse({ success: false, error: insertError.message });
+      return;
+    }
+
+    console.log("Avatar created successfully:", avatar.id);
+    sendResponse({ success: true, avatar });
+  } catch (error) {
+    console.error("Error adding avatar from URL:", error);
     sendResponse({ success: false, error: error.message });
   }
 }

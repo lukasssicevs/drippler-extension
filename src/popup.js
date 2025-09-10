@@ -906,9 +906,9 @@ function showClothingUploadModal(file) {
         <img src="${previewUrl}" class="image-preview" alt="Preview" />
       </div>
         <div class="clothing-form-actions">
-          <input type="text" id="clothingName" placeholder="e.g., Blue Denim Jacket or any notes about this item" />
           <button class="btn primary" id="confirmClothingUpload">
-            <i class="ph ph-check" style="font-size: 16px;"></i>
+            <i class="ph ph-plus" style="font-size: 16px; margin-right: 8px;"></i>
+            Add to Wardrobe
           </button>
         </div>
     </div>
@@ -930,12 +930,9 @@ function showClothingUploadModal(file) {
   modal
     .querySelector("#confirmClothingUpload")
     .addEventListener("click", async () => {
-      const name = document.getElementById("clothingName").value.trim();
-
-      if (!name) {
-        showError("Please enter an item name");
-        return;
-      }
+      // Generate a default name based on file name or timestamp
+      const name =
+        file.name.replace(/\.[^/.]+$/, "") || `Clothing Item ${Date.now()}`;
 
       try {
         // Update main button state to loading
@@ -945,7 +942,8 @@ function showClothingUploadModal(file) {
         const confirmBtn = modal.querySelector("#confirmClothingUpload");
         confirmBtn.disabled = true;
         confirmBtn.innerHTML = `
-          <i class="ph ph-spinner" style="font-size: 16px; animation: spin 1s linear infinite"></i>
+          <i class="ph ph-spinner" style="font-size: 16px; margin-right: 8px; animation: spin 1s linear infinite"></i>
+          Adding to Wardrobe...
         `;
 
         // Convert file to base64 for safer transmission
@@ -977,7 +975,8 @@ function showClothingUploadModal(file) {
         if (response.success) {
           // Update modal button to success
           confirmBtn.innerHTML = `
-            <i class="ph ph-check" style="font-size: 16px;"></i>
+            <i class="ph ph-check" style="font-size: 16px; margin-right: 8px;"></i>
+            Added!
           `;
 
           // Update main button to success
@@ -1010,7 +1009,8 @@ function showClothingUploadModal(file) {
         const confirmBtn = modal.querySelector("#confirmClothingUpload");
         confirmBtn.disabled = false;
         confirmBtn.innerHTML = `
-          <i class="ph ph-check" style="font-size: 16px;"></i>
+          <i class="ph ph-plus" style="font-size: 16px; margin-right: 8px;"></i>
+          Add to Wardrobe
         `;
       }
     });
@@ -1023,8 +1023,18 @@ async function loadClothingItems() {
   const clothingGrid = document.getElementById("clothingGrid");
 
   try {
-    clothingGrid.innerHTML =
-      '<div class="loading-state">Loading wardrobe...</div>';
+    clothingGrid.innerHTML = `
+      <div class="loading-state">
+        ${createIconHTML(
+          IconNames.SPINNER,
+          20,
+          IconWeights.REGULAR,
+          "var(--accent-primary)",
+          "spinning"
+        )}
+        <span>Loading wardrobe...</span>
+      </div>
+    `;
 
     const response = await chrome.runtime.sendMessage({
       action: "getClothingItems",
@@ -1033,14 +1043,22 @@ async function loadClothingItems() {
     if (response.success) {
       displayClothingItems(response.data);
     } else {
-      clothingGrid.innerHTML =
-        '<div class="loading-state">Failed to load wardrobe</div>';
+      clothingGrid.innerHTML = `
+        <div class="loading-state error-message">
+          ${createIconHTML(IconNames.ERROR, 20, IconWeights.REGULAR, "#ef4444")}
+          <span>Failed to load wardrobe</span>
+        </div>
+      `;
       console.error("Failed to load clothing items:", response.error);
     }
   } catch (error) {
     console.error("Error loading clothing items:", error);
-    clothingGrid.innerHTML =
-      '<div class="loading-state">Error loading wardrobe</div>';
+    clothingGrid.innerHTML = `
+      <div class="loading-state error-message">
+        ${createIconHTML(IconNames.ERROR, 20, IconWeights.REGULAR, "#ef4444")}
+        <span>Error loading wardrobe</span>
+      </div>
+    `;
   }
 }
 
@@ -1086,13 +1104,28 @@ function displayClothingItems(items) {
     .map(
       (item) => `
     <div class="clothing-item" data-item-id="${item.id}">
-      <img src="${item.image_url}" alt="${item.name}" loading="lazy" class="clothing-image" />
+      <img src="${item.image_url}" alt="${
+        item.name
+      }" loading="lazy" class="clothing-image" />
+      ${
+        item.source_url
+          ? `
+        <button class="clothing-source-link" data-action="source-link" data-source-url="${item.source_url}" title="View Original Source">
+          <i class="ph ph-link" style="font-size: 14px"></i>
+        </button>
+      `
+          : ""
+      }
       <div class="clothing-item-overlay">
-        <button class="clothing-action-btn try-on" data-action="try-on" data-item-id="${item.id}" title="Try On">
+        <button class="clothing-action-btn try-on" data-action="try-on" data-item-id="${
+          item.id
+        }" title="Try On">
           <i class="ph ph-magic-wand" style="font-size: 14px; margin-right: 6px"></i>
           Generate
         </button>
-        <button class="clothing-action-btn delete" data-action="delete" data-item-id="${item.id}" title="Delete">
+        <button class="clothing-action-btn delete" data-action="delete" data-item-id="${
+          item.id
+        }" title="Delete">
           <i class="ph ph-minus" style="font-size: 14px"></i>
         </button>
       </div>
@@ -1107,24 +1140,46 @@ function displayClothingItems(items) {
 }
 
 function handleClothingGridClick(event) {
-  const button = event.target.closest(".clothing-action-btn");
+  const button = event.target.closest(
+    ".clothing-action-btn, .clothing-source-link"
+  );
   if (!button) return;
 
   const action = button.dataset.action;
   const itemId = button.dataset.itemId;
+  const sourceUrl = button.dataset.sourceUrl;
 
-  console.log("Button clicked:", { action, itemId, button });
+  console.log("Button clicked:", { action, itemId, sourceUrl, button });
 
   if (action === "try-on") {
     tryOnClothingItem(itemId);
   } else if (action === "delete") {
     deleteClothingItem(itemId);
+  } else if (action === "source-link" && sourceUrl) {
+    openSourceLink(sourceUrl);
+  }
+}
+
+function openSourceLink(sourceUrl) {
+  try {
+    // Open the source URL in a new tab
+    chrome.tabs.create({ url: sourceUrl });
+  } catch (error) {
+    console.error("Error opening source link:", error);
+    showError("Failed to open source link");
   }
 }
 
 async function deleteClothingItem(itemId) {
-  if (!confirm("Are you sure you want to delete this clothing item?")) {
-    return;
+  // Get the delete button and show loading state
+  const deleteButton = document.querySelector(
+    `[data-item-id="${itemId}"][data-action="delete"]`
+  );
+  if (deleteButton) {
+    deleteButton.disabled = true;
+    deleteButton.innerHTML = `
+      <i class="ph ph-spinner spinning" style="font-size: 14px;"></i>
+    `;
   }
 
   try {
@@ -1138,10 +1193,24 @@ async function deleteClothingItem(itemId) {
       loadClothingItems(); // Refresh the display
     } else {
       showError(response.error || "Failed to delete clothing item");
+      // Reset button on error
+      if (deleteButton) {
+        deleteButton.disabled = false;
+        deleteButton.innerHTML = `
+          <i class="ph ph-minus" style="font-size: 14px;"></i>
+        `;
+      }
     }
   } catch (error) {
     console.error("Error deleting clothing item:", error);
     showError("Error deleting clothing item: " + error.message);
+    // Reset button on error
+    if (deleteButton) {
+      deleteButton.disabled = false;
+      deleteButton.innerHTML = `
+        <i class="ph ph-minus" style="font-size: 14px;"></i>
+      `;
+    }
   }
 }
 
@@ -1263,11 +1332,11 @@ function showTryOnResult(resultData) {
         <img src="${resultData.generatedImageUrl}" alt="Virtual Try-On Result" class="try-on-view-image" />
       </div>
       <div class="try-on-view-actions">
-        <button class="btn primary" id="downloadTryOnResult">
+        <button class="btn secondary" id="downloadTryOnResult">
           <i class="ph ph-download" style="font-size: 16px; margin-right: 8px"></i>
           Download
         </button>
-        <button class="btn secondary" id="addAsAvatarBtn">
+        <button class="btn primary" id="addAsAvatarBtn">
           <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px"></i>
           Add as Avatar
         </button>
@@ -1286,10 +1355,13 @@ function showTryOnResult(resultData) {
     modal.remove();
   });
 
-  modal.querySelector("#addAsAvatarBtn").addEventListener("click", () => {
-    // TODO: Implement add as avatar functionality
-    console.log("Add as avatar clicked");
-    modal.remove();
+  modal.querySelector("#addAsAvatarBtn").addEventListener("click", async () => {
+    const button = modal.querySelector("#addAsAvatarBtn");
+    await addImageAsAvatar(resultData.generatedImageUrl, button);
+    // Close modal after successful addition (timeout allows user to see success state)
+    setTimeout(() => {
+      modal.remove();
+    }, 2500);
   });
 
   modal.querySelector("#downloadTryOnResult").addEventListener("click", () => {
@@ -1410,10 +1482,84 @@ async function handleAvatarFileUpload(event) {
   event.target.value = "";
 }
 
+async function addImageAsAvatar(imageUrl, buttonElement = null) {
+  try {
+    // Update button state if provided
+    if (buttonElement) {
+      buttonElement.disabled = true;
+      buttonElement.innerHTML = `
+        <i class="ph ph-spinner spinning" style="font-size: 16px; margin-right: 8px;"></i>
+        Adding...
+      `;
+    }
+
+    // Use efficient addAvatarFromUrl action (no download/upload needed)
+    const response = await chrome.runtime.sendMessage({
+      action: "addAvatarFromUrl",
+      data: {
+        imageUrl: imageUrl,
+      },
+    });
+
+    if (response.success) {
+      // Update button to success state
+      if (buttonElement) {
+        buttonElement.innerHTML = `
+          <i class="ph ph-check" style="font-size: 16px; margin-right: 8px;"></i>
+        Added!
+        `;
+      }
+
+      showSuccess("Image added as avatar successfully!");
+      loadAvatars();
+      updateHeaderUserInfo();
+
+      // Reset button after 2 seconds
+      if (buttonElement) {
+        setTimeout(() => {
+          buttonElement.innerHTML = `
+            <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px;"></i>
+            Add as Avatar
+          `;
+          buttonElement.disabled = false;
+        }, 2000);
+      }
+    } else {
+      throw new Error(response.error || "Failed to add as avatar");
+    }
+  } catch (error) {
+    console.error("Error adding image as avatar:", error);
+    showError("Error adding as avatar: " + error.message);
+
+    // Reset button to original state
+    if (buttonElement) {
+      buttonElement.innerHTML = `
+        <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px;"></i>
+        Add as Avatar
+      `;
+      buttonElement.disabled = false;
+    }
+  }
+}
+
 async function loadAvatars() {
   const avatarsGrid = document.getElementById("avatarsGrid");
 
   try {
+    // Show loading state first
+    avatarsGrid.innerHTML = `
+      <div class="loading-state">
+        ${createIconHTML(
+          IconNames.SPINNER,
+          20,
+          IconWeights.REGULAR,
+          "var(--accent-primary)",
+          "spinning"
+        )}
+        <span>Loading avatars...</span>
+      </div>
+    `;
+
     const response = await chrome.runtime.sendMessage({
       action: "getAvatars",
     });
@@ -1565,13 +1711,18 @@ function displayAvatars(avatars) {
 
   avatarsGrid.innerHTML = gridHTML;
 
-  // Add event listeners for avatar actions
+  // Remove any existing event listeners and add new one
+  avatarsGrid.removeEventListener("click", handleAvatarGridClick);
   avatarsGrid.addEventListener("click", handleAvatarGridClick);
 }
 
 async function handleAvatarGridClick(event) {
-  const action = event.target.dataset.action;
-  const avatarId = event.target.dataset.avatarId;
+  // Find the closest button element (could be clicked on icon inside button)
+  const button = event.target.closest(".avatar-action-btn");
+  if (!button) return;
+
+  const action = button.dataset.action;
+  const avatarId = button.dataset.avatarId;
 
   if (!action || !avatarId) return;
 
@@ -1608,7 +1759,16 @@ async function setActiveAvatar(avatarId) {
 }
 
 async function deleteAvatar(avatarId) {
-  if (!confirm("Are you sure you want to delete this avatar?")) return;
+  // Get the delete button and show loading state
+  const deleteButton = document.querySelector(
+    `[data-avatar-id="${avatarId}"][data-action="delete"]`
+  );
+  if (deleteButton) {
+    deleteButton.disabled = true;
+    deleteButton.innerHTML = `
+      <i class="ph ph-spinner spinning" style="font-size: 14px;"></i>
+    `;
+  }
 
   try {
     const response = await chrome.runtime.sendMessage({
@@ -1626,6 +1786,13 @@ async function deleteAvatar(avatarId) {
   } catch (error) {
     console.error("Error deleting avatar:", error);
     showError("Error deleting avatar: " + error.message);
+    // Reset button on error
+    if (deleteButton) {
+      deleteButton.disabled = false;
+      deleteButton.innerHTML = `
+        <i class="ph ph-minus" style="font-size: 14px;"></i>
+      `;
+    }
   }
 }
 
@@ -1800,8 +1967,18 @@ async function loadTryOnGenerations() {
   const tryonsGrid = document.getElementById("tryonsGrid");
 
   try {
-    tryonsGrid.innerHTML =
-      '<div class="loading-state">Loading try-ons...</div>';
+    tryonsGrid.innerHTML = `
+      <div class="loading-state">
+        ${createIconHTML(
+          IconNames.SPINNER,
+          20,
+          IconWeights.REGULAR,
+          "var(--accent-primary)",
+          "spinning"
+        )}
+        <span>Loading try-ons...</span>
+      </div>
+    `;
 
     const response = await chrome.runtime.sendMessage({
       action: "getTryOnGenerations",
@@ -1810,14 +1987,22 @@ async function loadTryOnGenerations() {
     if (response.success) {
       displayTryOnGenerations(response.data.generations);
     } else {
-      tryonsGrid.innerHTML =
-        '<div class="loading-state">Failed to load try-ons</div>';
+      tryonsGrid.innerHTML = `
+        <div class="loading-state error-message">
+          ${createIconHTML(IconNames.ERROR, 20, IconWeights.REGULAR, "#ef4444")}
+          <span>Failed to load try-ons</span>
+        </div>
+      `;
       console.error("Failed to load try-on generations:", response.error);
     }
   } catch (error) {
     console.error("Error loading try-on generations:", error);
-    tryonsGrid.innerHTML =
-      '<div class="loading-state">Error loading try-ons</div>';
+    tryonsGrid.innerHTML = `
+      <div class="loading-state error-message">
+        ${createIconHTML(IconNames.ERROR, 20, IconWeights.REGULAR, "#ef4444")}
+        <span>Error loading try-ons</span>
+      </div>
+    `;
   }
 }
 
@@ -1929,11 +2114,11 @@ function showFullSizeTryOn(imageUrl) {
         <img src="${imageUrl}" alt="Virtual Try-On" class="try-on-view-image" />
       </div>
         <div class="try-on-view-actions">
-          <button class="btn primary" id="downloadFromViewBtn">
+          <button class="btn secondary" id="downloadFromViewBtn">
             <i class="ph ph-download" style="font-size: 16px; margin-right: 8px"></i>
             Download
           </button>
-          <button class="btn secondary" id="addAsAvatarFromViewBtn">
+          <button class="btn primary" id="addAsAvatarFromViewBtn">
             <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px"></i>
             Add as Avatar
           </button>
@@ -1955,10 +2140,13 @@ function showFullSizeTryOn(imageUrl) {
 
   modal
     .querySelector("#addAsAvatarFromViewBtn")
-    .addEventListener("click", () => {
-      // TODO: Implement add as avatar functionality
-      console.log("Add as avatar from view clicked");
-      modal.remove();
+    .addEventListener("click", async () => {
+      const button = modal.querySelector("#addAsAvatarFromViewBtn");
+      await addImageAsAvatar(imageUrl, button);
+      // Close modal after successful addition (timeout allows user to see success state)
+      setTimeout(() => {
+        modal.remove();
+      }, 2500);
     });
 
   document.body.appendChild(modal);
@@ -1986,8 +2174,15 @@ function downloadImage(imageUrl) {
 }
 
 async function deleteTryOn(generationId) {
-  if (!confirm("Are you sure you want to delete this try-on?")) {
-    return;
+  // Get the delete button and show loading state
+  const deleteButton = document.querySelector(
+    `[data-item-id="${generationId}"][data-action="delete"]`
+  );
+  if (deleteButton) {
+    deleteButton.disabled = true;
+    deleteButton.innerHTML = `
+      <i class="ph ph-spinner spinning" style="font-size: 14px;"></i>
+    `;
   }
 
   try {
@@ -2001,10 +2196,24 @@ async function deleteTryOn(generationId) {
       loadTryOnGenerations(); // Refresh the list
     } else {
       showError(response.error || "Failed to delete try-on");
+      // Reset button on error
+      if (deleteButton) {
+        deleteButton.disabled = false;
+        deleteButton.innerHTML = `
+          <i class="ph ph-minus" style="font-size: 14px;"></i>
+        `;
+      }
     }
   } catch (error) {
     console.error("Error deleting try-on:", error);
     showError("Error deleting try-on: " + error.message);
+    // Reset button on error
+    if (deleteButton) {
+      deleteButton.disabled = false;
+      deleteButton.innerHTML = `
+        <i class="ph ph-minus" style="font-size: 14px;"></i>
+      `;
+    }
   }
 }
 
@@ -2055,9 +2264,38 @@ function setButtonLoading(button, loading) {
   if (loading) {
     button.classList.add("loading");
     button.disabled = true;
+
+    // Store original content
+    if (!button.dataset.originalContent) {
+      button.dataset.originalContent = button.innerHTML;
+    }
+
+    // Set loading content based on button type
+    const buttonText = button.textContent.trim();
+    let loadingText = "Loading...";
+
+    if (buttonText.includes("Sign In")) {
+      loadingText = "Signing In...";
+    } else if (buttonText.includes("Create Account")) {
+      loadingText = "Creating Account...";
+    } else if (buttonText.includes("Send Reset Link")) {
+      loadingText = "Sending...";
+    } else if (buttonText.includes("Update Password")) {
+      loadingText = "Updating...";
+    }
+
+    button.innerHTML = `
+      <i class="ph ph-spinner spinning" style="font-size: 16px; margin-right: 8px;"></i>
+      ${loadingText}
+    `;
   } else {
     button.classList.remove("loading");
     button.disabled = false;
+
+    // Restore original content
+    if (button.dataset.originalContent) {
+      button.innerHTML = button.dataset.originalContent;
+    }
   }
 }
 
