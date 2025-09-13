@@ -328,6 +328,9 @@
           <div class="profile-modal-user">
             <div class="profile-modal-info">
               <h3 id="modalUserEmail">user@example.com</h3>
+              <div class="subscription-badge" id="subscriptionBadge">
+                <span class="badge-text" id="subscriptionText">Free</span>
+              </div>
             </div>
           </div>
 
@@ -336,7 +339,8 @@
               <h4>Virtual Try-Ons</h4>
               <div class="stats-info">
                 <span id="generationCount">0</span> /
-                <span id="generationLimit">15</span> free generations used
+                <span id="generationLimit">15</span>
+                <span id="generationPlanText">free generations used</span>
               </div>
               <div class="stats-bar">
                 <div class="stats-progress" id="statsProgress"></div>
@@ -345,6 +349,30 @@
           </div>
 
           <div class="profile-modal-actions">
+            <button
+              class="action-btn upgrade-btn hidden"
+              id="upgradeBtn"
+            >
+              <i class="ph ph-crown" style="font-size: 18px"></i>
+              Upgrade to Pro
+            </button>
+            <button
+              class="action-btn cancel-subscription-btn hidden"
+              id="cancelSubscriptionBtn"
+            >
+              <i class="ph ph-x-circle"></i>
+              Cancel Subscription
+            </button>
+            <div
+              class="action-btn subscription-ending-notice hidden"
+              id="subscriptionEndingNotice"
+            >
+              <i class="ph ph-info" style="font-size: 18px"></i>
+              <div class="notice-text">
+                <span class="notice-title">Subscription Canceled</span>
+                <span class="notice-subtitle">Pro access until billing period ends</span>
+              </div>
+            </div>
             <button class="action-btn" id="modalSignOutBtn">
               <i class="ph ph-sign-out" style="font-size: 18px"></i>
               Sign Out

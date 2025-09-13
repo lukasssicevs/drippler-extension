@@ -6,7 +6,8 @@ let supabaseClient = null;
 let isSupabaseConnected = false;
 
 // Backend API configuration
-const BACKEND_API_URL = "https://drippler-web.vercel.app";
+// const BACKEND_API_URL = "https://drippler-web.vercel.app";
+const BACKEND_API_URL = "http://localhost:3000";
 
 // Supabase configuration - Replace with your actual values
 const SUPABASE_CONFIG = {
@@ -171,6 +172,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     case "openPopup":
       handleOpenPopup(sendResponse);
+      break;
+
+    case "createStripeCheckout":
+      handleCreateStripeCheckout(sendResponse);
+      break;
+
+    case "getSubscriptionStatus":
+      handleGetSubscriptionStatus(sendResponse);
+      break;
+
+    case "cancelSubscription":
+      handleCancelSubscription(sendResponse);
       break;
 
     default:
@@ -2257,15 +2270,23 @@ async function handleDeleteAccount(sendResponse) {
 
     await supabaseClient.from("profiles").delete().eq("id", userId);
 
-    // 4. Finally, delete the user account
-    const { error: deleteUserError } =
-      await supabaseClient.auth.admin.deleteUser(userId);
+    // 4. Finally, delete the user account using web API (requires admin privileges)
+    const response = await fetch(`${BACKEND_API_URL}/api/user/delete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Supabase-Auth": session.access_token,
+      },
+    });
 
-    if (deleteUserError) {
-      console.error("Error deleting user account:", deleteUserError);
-      // Try alternative method if admin method fails
-      await supabaseClient.auth.signOut();
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to delete account from auth");
     }
+
+    // Sign out locally after successful deletion
+    await supabaseClient.auth.signOut();
 
     console.log("User account deleted successfully");
 
@@ -2662,6 +2683,230 @@ async function handleOpenPopup(sendResponse) {
   } catch (error) {
     console.error("Error opening popup:", error);
     sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Stripe Checkout Handler
+async function handleCreateStripeCheckout(sendResponse) {
+  try {
+    if (!isSupabaseConnected || !supabaseClient) {
+      sendResponse({
+        success: false,
+        error: "Supabase connection required",
+      });
+      return;
+    }
+
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      sendResponse({
+        success: false,
+        error: "User authentication required",
+      });
+      return;
+    }
+
+    // Call the Next.js API to create checkout session
+    const response = await fetch(`${BACKEND_API_URL}/api/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        customer_email: user.email,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.url) {
+      sendResponse({
+        success: true,
+        checkoutUrl: data.url,
+      });
+    } else {
+      sendResponse({
+        success: false,
+        error: data.error || "Failed to create checkout session",
+      });
+    }
+  } catch (error) {
+    console.error("Error creating Stripe checkout:", error);
+    sendResponse({
+      success: false,
+      error: error.message,
+    });
+  }
+}
+
+// Subscription Status Handler
+async function handleGetSubscriptionStatus(sendResponse) {
+  try {
+    if (!isSupabaseConnected || !supabaseClient) {
+      sendResponse({
+        success: false,
+        error: "Supabase connection required",
+      });
+      return;
+    }
+
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      sendResponse({
+        success: false,
+        error: "User authentication required",
+      });
+      return;
+    }
+
+    // Get user's subscription and plan info from database
+    // ALSO get the subscription directly to check cancel_at_period_end
+    const { data: subscriptionData, error: subError } = await supabaseClient
+      .from("user_subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .single();
+
+    const { data: planInfo, error: planError } = await supabaseClient.rpc(
+      "get_user_plan_info",
+      { p_user_id: user.id }
+    );
+
+    if (planError) {
+      console.warn("Failed to get plan info:", planError.message);
+      // Default to free if we can't get plan info
+      sendResponse({
+        success: true,
+        isPro: false,
+        subscriptionStatus: "free",
+        planType: "free",
+        monthlyLimit: 15,
+        currentCount: 0,
+        remainingGenerations: 15,
+      });
+      return;
+    }
+
+    const userPlan = planInfo?.[0] || {
+      plan_type: "free",
+      status: "free",
+      monthly_limit: 15,
+      current_count: 0,
+      remaining_generations: 15,
+      subscription_active: false,
+      cancel_at_period_end: false,
+    };
+
+    // Get cancel_at_period_end from direct subscription query since RPC might not have it
+    const cancelAtPeriodEnd = subscriptionData?.cancel_at_period_end || false;
+
+    // User is Pro if they have plan_type "pro" AND subscription is active
+    // This covers both normal active subscriptions and canceled-but-still-active subscriptions
+    const isPro = userPlan.plan_type === "pro" && userPlan.subscription_active;
+
+    sendResponse({
+      success: true,
+      isPro: isPro,
+      subscriptionStatus: userPlan.status,
+      planType: userPlan.plan_type,
+      monthlyLimit: userPlan.monthly_limit,
+      currentCount: userPlan.current_count,
+      remainingGenerations: userPlan.remaining_generations,
+      cancelAtPeriodEnd: cancelAtPeriodEnd,
+    });
+  } catch (error) {
+    console.error("Error getting subscription status:", error);
+    sendResponse({
+      success: false,
+      error: error.message,
+    });
+  }
+}
+
+// Handle subscription cancellation
+async function handleCancelSubscription(sendResponse) {
+  try {
+    if (!isSupabaseConnected || !supabaseClient) {
+      sendResponse({
+        success: false,
+        error: "Supabase connection required",
+      });
+      return;
+    }
+
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      sendResponse({
+        success: false,
+        error: "User authentication required",
+      });
+      return;
+    }
+
+    // Get session for API call
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      sendResponse({
+        success: false,
+        error: "Authentication session required",
+      });
+      return;
+    }
+
+    const webappUrl = await getWebappUrl();
+
+    // Make request to cancel subscription API
+    const response = await fetch(`${webappUrl}/api/subscription/cancel`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Supabase-Auth": session.access_token,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error || `API request failed: ${response.status}`
+      );
+    }
+
+    const responseData = await response.json();
+    console.log("Subscription canceled successfully");
+
+    sendResponse({
+      success: true,
+      data: responseData.data,
+      message: responseData.message,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error canceling subscription:", error);
+    sendResponse({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
   }
 }
 

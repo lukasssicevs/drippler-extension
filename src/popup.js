@@ -447,6 +447,12 @@ function setupAuthEventListeners() {
   document
     .getElementById("modalSignOutBtn")
     ?.addEventListener("click", handleSignOut);
+  document
+    .getElementById("upgradeBtn")
+    ?.addEventListener("click", handleUpgradeToPro);
+  document
+    .getElementById("cancelSubscriptionBtn")
+    ?.addEventListener("click", handleCancelSubscription);
 
   // Profile modal backdrop click to close
   document.getElementById("profileModal")?.addEventListener("click", (e) => {
@@ -1845,8 +1851,9 @@ function updateModalUserInfo() {
   if (currentUser) {
     modalUserEmail.textContent = currentUser.email || "Unknown";
 
-    // Load generation stats
+    // Load generation stats and subscription status
     loadGenerationStats();
+    updateSubscriptionUI();
   }
 }
 
@@ -2315,6 +2322,226 @@ function clearForms() {
     ".error-message, .success-message"
   );
   messages.forEach((message) => message.remove());
+}
+
+// Subscription management functions
+async function updateSubscriptionUI() {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "getSubscriptionStatus",
+    });
+
+    const subscriptionBadge = document.getElementById("subscriptionBadge");
+    const subscriptionText = document.getElementById("subscriptionText");
+    const upgradeBtn = document.getElementById("upgradeBtn");
+    const cancelSubscriptionBtn = document.getElementById("cancelSubscriptionBtn");
+    const subscriptionEndingNotice = document.getElementById("subscriptionEndingNotice");
+
+    if (response && response.success) {
+      const isPro = response.isPro || false;
+      const cancelAtPeriodEnd = response.cancelAtPeriodEnd || false;
+
+      // Update badge
+      subscriptionText.textContent = isPro ? "Pro" : "Free";
+      subscriptionBadge.className = `subscription-badge ${isPro ? "pro" : "free"}`;
+
+      // Hide all buttons/notices first using CSS classes
+      upgradeBtn.classList.add("hidden");
+      cancelSubscriptionBtn.classList.add("hidden");
+      subscriptionEndingNotice.classList.add("hidden");
+
+      // Now show the appropriate button/notice
+      if (isPro === true) {
+        if (cancelAtPeriodEnd === true) {
+          // Pro user with canceled subscription - show ending notice
+          subscriptionEndingNotice.classList.remove("hidden");
+        } else {
+          // Active Pro user - show cancel button only
+          cancelSubscriptionBtn.classList.remove("hidden");
+        }
+      } else {
+        // Free user - show upgrade button only
+        upgradeBtn.classList.remove("hidden");
+      }
+
+      // Update generation stats display if available
+      if (response.monthlyLimit && response.currentCount !== undefined) {
+        updateGenerationStatsDisplay(response.currentCount, response.monthlyLimit, response.remainingGenerations, isPro);
+      }
+    } else {
+      // Default to free if no subscription info
+      subscriptionText.textContent = "Free";
+      subscriptionBadge.className = "subscription-badge free";
+      upgradeBtn.classList.remove("hidden");
+      cancelSubscriptionBtn.classList.add("hidden");
+
+      // Update generation text for free users
+      updateGenerationStatsDisplay(0, 15, 15, false);
+    }
+  } catch (error) {
+    console.error("Error loading subscription status:", error);
+    // Default to free on error
+    const subscriptionBadge = document.getElementById("subscriptionBadge");
+    const subscriptionText = document.getElementById("subscriptionText");
+    const upgradeBtn = document.getElementById("upgradeBtn");
+    const cancelSubscriptionBtn = document.getElementById("cancelSubscriptionBtn");
+
+    subscriptionText.textContent = "Free";
+    subscriptionBadge.className = "subscription-badge free";
+    upgradeBtn.classList.remove("hidden");
+    cancelSubscriptionBtn.classList.add("hidden");
+
+    // Update generation text for free users (error case)
+    updateGenerationStatsDisplay(0, 15, 15, false);
+  }
+}
+
+function updateGenerationStatsDisplay(currentCount, monthlyLimit, remainingGenerations, isPro = false) {
+  const generationCountElement = document.getElementById("generationCount");
+  const generationLimitElement = document.getElementById("generationLimit");
+  const generationPlanTextElement = document.getElementById("generationPlanText");
+
+  if (generationCountElement && generationLimitElement) {
+    generationCountElement.textContent = currentCount || 0;
+    generationLimitElement.textContent = monthlyLimit || 15;
+
+    // Update plan-specific text with more descriptive language
+    if (generationPlanTextElement) {
+      const remaining = remainingGenerations || 0;
+
+      if (isPro) {
+        if (remaining > 50) {
+          generationPlanTextElement.textContent = "Pro generations this month";
+        } else if (remaining > 10) {
+          generationPlanTextElement.textContent = `Pro generations (${remaining} remaining)`;
+        } else if (remaining > 0) {
+          generationPlanTextElement.textContent = `Pro generations (${remaining} left)`;
+        } else {
+          generationPlanTextElement.textContent = "Pro monthly limit reached";
+        }
+      } else {
+        if (remaining > 10) {
+          generationPlanTextElement.textContent = "free generations this month";
+        } else if (remaining > 5) {
+          generationPlanTextElement.textContent = `free generations (${remaining} remaining)`;
+        } else if (remaining > 0) {
+          generationPlanTextElement.textContent = `free generations (${remaining} left)`;
+        } else {
+          generationPlanTextElement.textContent = "free monthly limit reached";
+        }
+      }
+    }
+
+    // Update progress bar if it exists
+    const progressBar = document.querySelector(".stats-progress");
+    if (progressBar) {
+      const percentage = Math.min(100, (currentCount / monthlyLimit) * 100);
+      progressBar.style.width = `${percentage}%`;
+
+      // Change color based on usage
+      if (percentage >= 100) {
+        progressBar.style.background = "#dc2626"; // Dark red for limit reached
+      } else if (percentage >= 90) {
+        progressBar.style.background = "#ef4444"; // Red for critical
+      } else if (percentage >= 70) {
+        progressBar.style.background = "#f59e0b"; // Orange for warning
+      } else {
+        progressBar.style.background = "var(--accent-primary)"; // Purple for normal
+      }
+    }
+  }
+}
+
+async function handleUpgradeToPro() {
+  const upgradeBtn = document.getElementById("upgradeBtn");
+  
+  try {
+    // Show loading state
+    upgradeBtn.disabled = true;
+    upgradeBtn.innerHTML = `
+      <i class="ph ph-spinner spinning" style="font-size: 18px; margin-right: 8px;"></i>
+      Processing...
+    `;
+
+    // Request checkout URL from background script or web app
+    const response = await chrome.runtime.sendMessage({
+      action: "createStripeCheckout",
+    });
+
+    if (response && response.success && response.checkoutUrl) {
+      // Redirect to Stripe checkout
+      chrome.tabs.create({ url: response.checkoutUrl });
+      
+      // Close the modal after redirect
+      closeProfileModal();
+      
+      showSuccess("Redirecting to payment...");
+    } else {
+      throw new Error(response.error || "Failed to create checkout session");
+    }
+  } catch (error) {
+    console.error("Error creating checkout session:", error);
+    showError("Error starting upgrade process: " + error.message);
+  } finally {
+    // Reset button
+    upgradeBtn.disabled = false;
+    upgradeBtn.innerHTML = `
+      <i class="ph ph-crown" style="font-size: 18px; margin-right: 8px;"></i>
+      Upgrade to Pro
+    `;
+  }
+}
+
+async function handleCancelSubscription() {
+  const cancelBtn = document.getElementById("cancelSubscriptionBtn");
+
+  // Show confirmation dialog
+  const confirmed = confirm(
+    "Are you sure you want to cancel your subscription? You'll continue to have Pro access until the end of your current billing period, then you'll be downgraded to the Free plan."
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    // Show loading state
+    cancelBtn.disabled = true;
+    cancelBtn.innerHTML = `
+      <i class="ph ph-spinner spinning" style="font-size: 18px; margin-right: 8px;"></i>
+      Canceling...
+    `;
+
+    // Request cancellation from background script
+    const response = await chrome.runtime.sendMessage({
+      action: "cancelSubscription",
+    });
+
+    if (response && response.success) {
+      showSuccess("Subscription canceled successfully. You'll keep Pro access until the end of your billing period.");
+
+      // Close the modal
+      closeProfileModal();
+
+      // Refresh the subscription status immediately and after a brief delay
+      updateSubscriptionUI();
+      setTimeout(() => {
+        updateSubscriptionUI();
+      }, 1000);
+    } else {
+      throw new Error(response.error || "Failed to cancel subscription");
+    }
+  } catch (error) {
+    console.error("Error canceling subscription:", error);
+    showError("Error canceling subscription: " + error.message);
+  } finally {
+    // Reset button
+    cancelBtn.disabled = false;
+    cancelBtn.innerHTML = `
+      <i class="ph ph-x-circle" style="font-size: 18px; margin-right: 8px;"></i>
+      Cancel Subscription
+    `;
+  }
 }
 
 // Handle messages from background script
