@@ -6,8 +6,7 @@ let supabaseClient = null;
 let isSupabaseConnected = false;
 
 // Backend API configuration
-// const BACKEND_API_URL = "https://drippler-web.vercel.app";
-const BACKEND_API_URL = "http://localhost:3000";
+const BACKEND_API_URL = "https://drippler-web.vercel.app";
 
 // Supabase configuration - Replace with your actual values
 const SUPABASE_CONFIG = {
@@ -982,11 +981,14 @@ async function handleTestWebAppAPI(customMessage, sendResponse) {
     });
 
     const responseData = await response.json();
-    console.log("Web app API response:", responseData);
+    console.log(
+      "Web app API response status:",
+      responseData.success ? "success" : "failed"
+    );
 
     if (responseData.success) {
       console.log("✅ Token validation successful!");
-      console.log("Validated user:", responseData.user);
+      console.log("Validated user email:", responseData.user?.email);
     } else {
       console.log("❌ Token validation failed:", responseData.error);
     }
@@ -1954,7 +1956,13 @@ async function handleGenerateVirtualTryOn(data, sendResponse) {
     const webappUrl = await getWebappUrl();
 
     // Make request to NextJS API with image URLs (let backend fetch them)
-    console.log("Calling NextJS API for virtual try-on...");
+    console.log("Calling NextJS API for virtual try-on...", {
+      webappUrl,
+      hasUserImage: !!userImageUrl,
+      hasClothingImage: !!clothingImageUrl,
+      clothingName,
+    });
+
     const response = await fetch(`${webappUrl}/api/virtual-try-on`, {
       method: "POST",
       headers: {
@@ -1969,8 +1977,20 @@ async function handleGenerateVirtualTryOn(data, sendResponse) {
       }),
     });
 
+    console.log(
+      "Virtual try-on API response status:",
+      response.status,
+      response.statusText
+    );
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error("Virtual try-on API error:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData.error,
+        message: errorData.message,
+      });
 
       if (response.status === 402) {
         // Payment required - generation limit exceeded
@@ -1986,13 +2006,17 @@ async function handleGenerateVirtualTryOn(data, sendResponse) {
       }
 
       throw new Error(
-        errorData.error || `API request failed: ${response.status}`
+        errorData.error ||
+          `API request failed: ${response.status} ${response.statusText}`
       );
     }
 
     const responseData = await response.json();
 
-    console.log("Virtual try-on generated successfully");
+    console.log("Virtual try-on generated successfully", {
+      hasData: !!responseData.data,
+      hasGeneratedImage: !!responseData.data?.generatedImageUrl,
+    });
 
     sendResponse({
       success: true,

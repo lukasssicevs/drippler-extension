@@ -1127,7 +1127,7 @@ function displayClothingItems(items) {
           item.id
         }" title="Try On">
           <i class="ph ph-magic-wand" style="font-size: 14px; margin-right: 6px"></i>
-          Generate
+          Try On
         </button>
         <button class="clothing-action-btn delete" data-action="delete" data-item-id="${
           item.id
@@ -1319,7 +1319,7 @@ function resetGenerateButton(itemId) {
     generateButton.disabled = false;
     generateButton.innerHTML = `
       <i class="ph ph-magic-wand" style="font-size: 14px; margin-right: 6px"></i>
-      Generate
+      Try On
     `;
   }
 }
@@ -1344,7 +1344,7 @@ function showTryOnResult(resultData) {
         </button>
         <button class="btn primary" id="addAsAvatarBtn">
           <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px"></i>
-          Add as Avatar
+          Add to Avatars
         </button>
       </div>
     </div>
@@ -1376,6 +1376,11 @@ function showTryOnResult(resultData) {
     link.href = resultData.generatedImageUrl;
     link.download = `virtual-try-on-${Date.now()}.jpg`;
     link.click();
+  });
+
+  // Add click listener to image to open in new tab
+  modal.querySelector(".try-on-view-image").addEventListener("click", () => {
+    window.open(resultData.generatedImageUrl, '_blank');
   });
 
   document.body.appendChild(modal);
@@ -1525,13 +1530,13 @@ async function addImageAsAvatar(imageUrl, buttonElement = null) {
         setTimeout(() => {
           buttonElement.innerHTML = `
             <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px;"></i>
-            Add as Avatar
+            Add to Avatars
           `;
           buttonElement.disabled = false;
         }, 2000);
       }
     } else {
-      throw new Error(response.error || "Failed to add as avatar");
+      throw new Error(response.error || "Failed to add to avatars");
     }
   } catch (error) {
     console.error("Error adding image as avatar:", error);
@@ -1541,7 +1546,7 @@ async function addImageAsAvatar(imageUrl, buttonElement = null) {
     if (buttonElement) {
       buttonElement.innerHTML = `
         <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px;"></i>
-        Add as Avatar
+        Add to Avatars
       `;
       buttonElement.disabled = false;
     }
@@ -2127,7 +2132,7 @@ function showFullSizeTryOn(imageUrl) {
           </button>
           <button class="btn primary" id="addAsAvatarFromViewBtn">
             <i class="ph ph-user-check" style="font-size: 16px; margin-right: 8px"></i>
-            Add as Avatar
+            Add to Avatars
           </button>
         </div>
     </div>
@@ -2155,6 +2160,11 @@ function showFullSizeTryOn(imageUrl) {
         modal.remove();
       }, 2500);
     });
+
+  // Add click listener to image to open in new tab
+  modal.querySelector(".try-on-view-image").addEventListener("click", () => {
+    window.open(imageUrl, '_blank');
+  });
 
   document.body.appendChild(modal);
 }

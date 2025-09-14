@@ -409,10 +409,10 @@ function setupDOMObservers() {
 // Setup image hover functionality
 function setupImageHoverFunctionality() {
   console.log("Setting up image hover functionality");
-  
+
   let hoverButton = null;
   let currentImage = null;
-  
+
   // Drip SVG icon
   function getDripSVG() {
     return `
@@ -428,26 +428,26 @@ function setupImageHoverFunctionality() {
       </svg>
     `;
   }
-  
+
   // Create the hover button element
   function createHoverButton() {
-    const button = document.createElement('div');
-    button.id = 'drippler-image-hover-btn';
+    const button = document.createElement("div");
+    button.id = "drippler-image-hover-btn";
     button.innerHTML = `
       <div class="drippler-hover-btn-content">
         <div class="drippler-hover-btn-icon">
-          ${getDripSVG()}
+          <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
         </div>
         <span class="drippler-hover-btn-text">Add to Drippler</span>
       </div>
     `;
-    
+
     // Add styles
     const styles = `
       #drippler-image-hover-btn {
         position: absolute;
-        background: #BD5DEE;
-        color: #FFFFFF;
+        background: #FFFFFF;
+        color: #BD5DEE;
         border-radius: 8px;
         padding: 0;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -459,7 +459,7 @@ function setupImageHoverFunctionality() {
         transition: all 0.15s ease;
         pointer-events: auto;
         display: none;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 2px solid #BD5DEE;
         overflow: visible;
       }
       
@@ -498,7 +498,7 @@ function setupImageHoverFunctionality() {
       }
       
       .drippler-hover-btn-text {
-        font-weight: 500;
+        font-weight: 700;
         font-size: 12px;
         white-space: nowrap;
       }
@@ -552,290 +552,319 @@ function setupImageHoverFunctionality() {
         animation: drippler-pulse 1.5s ease-in-out infinite;
       }
     `;
-    
+
     // Add styles to page if not already added
-    if (!document.getElementById('drippler-hover-styles')) {
-      const styleSheet = document.createElement('style');
-      styleSheet.id = 'drippler-hover-styles';
+    if (!document.getElementById("drippler-hover-styles")) {
+      const styleSheet = document.createElement("style");
+      styleSheet.id = "drippler-hover-styles";
       styleSheet.textContent = styles;
       document.head.appendChild(styleSheet);
     }
-    
+
     // Add click handler
-    button.addEventListener('click', handleHoverButtonClick);
-    
+    button.addEventListener("click", handleHoverButtonClick);
+
     document.body.appendChild(button);
     return button;
   }
-  
+
   // Handle hover button click
   async function handleHoverButtonClick(event) {
     event.preventDefault();
     event.stopPropagation();
-    
+
     if (!currentImage) return;
-    
-    console.log('Adding image to wardrobe:', currentImage.src);
-    
+
+    console.log("Adding image to wardrobe:", currentImage.src);
+
     // Show loading state
-    const button = event.target.closest('#drippler-image-hover-btn');
+    const button = event.target.closest("#drippler-image-hover-btn");
     const originalContent = button.innerHTML;
-    
-    // Check authentication first
+
+    // Check authentication first with retry logic
     try {
-      const authResponse = await chrome.runtime.sendMessage({
-        action: 'getCurrentUser'
+      let authResponse = await chrome.runtime.sendMessage({
+        action: "getCurrentUser",
       });
-      
+
+      // If auth check fails, try refreshing session once
+      if (!authResponse.success || !authResponse.user) {
+        console.log("Initial auth check failed, trying session refresh...");
+        try {
+          const refreshResponse = await chrome.runtime.sendMessage({
+            action: "refreshUserSession",
+          });
+
+          if (refreshResponse.success && refreshResponse.user) {
+            console.log("Session refresh successful, user authenticated");
+            authResponse = refreshResponse;
+          }
+        } catch (refreshError) {
+          console.warn("Session refresh failed:", refreshError);
+        }
+      }
+
       if (!authResponse.success || !authResponse.user) {
         // User not authenticated - show login prompt
         button.innerHTML = `
           <div class="drippler-hover-btn-content">
             <div class="drippler-hover-btn-icon">
-              ${getDripSVG()}
+              <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
             </div>
             <span class="drippler-hover-btn-text">Sign In First</span>
           </div>
         `;
-        button.style.background = '#EF4444';
-        button.classList.add('drippler-pulsing');
-        
+        button.classList.add("drippler-pulsing");
+
         // Open extension popup for login
         setTimeout(() => {
-          chrome.runtime.sendMessage({ action: 'openPopup' });
+          chrome.runtime.sendMessage({ action: "openPopup" });
           hideHoverButton();
         }, 1000);
         return;
       }
     } catch (authError) {
-      console.error('Error checking authentication:', authError);
+      console.error("Error checking authentication:", authError);
       // Show error and open popup as fallback
       button.innerHTML = `
         <div class="drippler-hover-btn-content">
           <div class="drippler-hover-btn-icon">
-            ${getDripSVG()}
+            <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
           </div>
           <span class="drippler-hover-btn-text">Please Sign In</span>
         </div>
       `;
-      button.style.background = '#F59E0B';
-      
+
       setTimeout(() => {
-        chrome.runtime.sendMessage({ action: 'openPopup' });
+        chrome.runtime.sendMessage({ action: "openPopup" });
         hideHoverButton();
       }, 1000);
       return;
     }
-    
+
     // Show loading state
     button.innerHTML = `
       <div class="drippler-hover-btn-content">
         <div class="drippler-hover-btn-icon">
-          ${getDripSVG()}
+          <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
         </div>
         <span class="drippler-hover-btn-text">Adding Item...</span>
       </div>
     `;
-    button.style.pointerEvents = 'none';
-    
+    button.style.pointerEvents = "none";
+
     try {
       // Send message to background script to save image
       const response = await chrome.runtime.sendMessage({
-        action: 'saveImageAsClothing',
+        action: "saveImageAsClothing",
         data: {
           imageUrl: currentImage.src,
           pageUrl: window.location.href,
           pageTitle: document.title,
-          source: 'image_hover'
-        }
+          source: "image_hover",
+        },
       });
-      
+
       if (response.success) {
-        // Show success state
+        // Show success state with animated WebP
         button.innerHTML = `
-          <div class="drippler-hover-btn-content">
-            <div class="drippler-hover-btn-icon drippler-dripping">
-              ${getDripSVG()}
+          <div class="drippler-hover-btn-content" style="overflow: visible; position: relative;">
+            <div class="drippler-hover-btn-icon" style="overflow: visible; width: 16px; height: 16px; position: relative;">
+              <img src="${chrome.runtime.getURL(
+                "assets/drip-animation.webp"
+              )}" alt="Drip animation" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
             </div>
             <span class="drippler-hover-btn-text">Item Added!</span>
           </div>
         `;
-        button.style.background = '#10B981';
-        
+        button.style.overflow = "visible";
+
         // Hide button after success with shorter delay
         setTimeout(() => {
           hideHoverButton();
         }, 1200);
       } else {
-        throw new Error(response.error || 'Failed to add image');
+        throw new Error(response.error || "Failed to add image");
       }
     } catch (error) {
-      console.error('Error adding image to wardrobe:', error);
-      
+      console.error("Error adding image to wardrobe:", error);
+
       // Show error state
       button.innerHTML = `
         <div class="drippler-hover-btn-content">
           <div class="drippler-hover-btn-icon">
-            ${getDripSVG()}
+            <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
           </div>
           <span class="drippler-hover-btn-text">Failed to Add</span>
         </div>
       `;
-      button.style.background = '#EF4444';
-      button.style.pointerEvents = 'auto';
-      
+      button.style.pointerEvents = "auto";
+
       // Reset after showing error
       setTimeout(() => {
         hideHoverButton();
       }, 1200);
     }
   }
-  
+
   // Position the hover button
   function positionHoverButton(image, button) {
     const rect = image.getBoundingClientRect();
     const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-    
+
     // Position button in top-right corner of image
-    button.style.left = (rect.right - button.offsetWidth - 8 + scrollX) + 'px';
-    button.style.top = (rect.top + 8 + scrollY) + 'px';
+    button.style.left = rect.right - button.offsetWidth - 8 + scrollX + "px";
+    button.style.top = rect.top + 8 + scrollY + "px";
   }
-  
+
   // Show hover button
   function showHoverButton(image) {
     if (!hoverButton) {
       hoverButton = createHoverButton();
     }
-    
+
     currentImage = image;
-    hoverButton.style.display = 'block';
+    hoverButton.style.display = "block";
     positionHoverButton(image, hoverButton);
   }
-  
+
   // Hide hover button
   function hideHoverButton() {
     if (hoverButton) {
-      hoverButton.style.display = 'none';
+      hoverButton.style.display = "none";
       currentImage = null;
       // Reset button to original state
       resetHoverButton();
     }
   }
-  
+
   // Reset hover button to original state
   function resetHoverButton() {
     if (hoverButton) {
       hoverButton.innerHTML = `
         <div class="drippler-hover-btn-content">
           <div class="drippler-hover-btn-icon">
-            ${getDripSVG()}
+            <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
           </div>
           <span class="drippler-hover-btn-text">Add to Drippler</span>
         </div>
       `;
-      hoverButton.style.background = '';
-      hoverButton.style.pointerEvents = 'auto';
-      hoverButton.classList.remove('drippler-pulsing', 'drippler-dripping', 'drippler-dripping-subtle');
+      hoverButton.style.pointerEvents = "auto";
+      hoverButton.classList.remove(
+        "drippler-pulsing",
+        "drippler-dripping",
+        "drippler-dripping-subtle"
+      );
     }
   }
-  
+
   // Check if image is valid for adding to wardrobe
   function isValidImage(img) {
     // Skip very small images (likely icons)
     if (img.width < 100 || img.height < 100) return false;
-    
+
     // Skip if image doesn't have a valid src
-    if (!img.src || img.src.startsWith('data:')) return false;
-    
+    if (!img.src || img.src.startsWith("data:")) return false;
+
     // Skip if image is part of Drippler extension UI
-    if (img.closest('#drippler-extension-ui') || 
-        img.closest('#drippler-quick-menu') ||
-        img.id === 'drippler-image-hover-btn') return false;
-    
+    if (
+      img.closest("#drippler-extension-ui") ||
+      img.closest("#drippler-quick-menu") ||
+      img.id === "drippler-image-hover-btn"
+    )
+      return false;
+
     return true;
   }
-  
+
   // Add event listeners to all images
   function addImageListeners() {
-    const images = document.querySelectorAll('img');
-    
-    images.forEach(img => {
+    const images = document.querySelectorAll("img");
+
+    images.forEach((img) => {
       // Remove existing listeners to avoid duplicates
-      img.removeEventListener('mouseenter', handleImageHover);
-      img.removeEventListener('mouseleave', handleImageLeave);
-      
+      img.removeEventListener("mouseenter", handleImageHover);
+      img.removeEventListener("mouseleave", handleImageLeave);
+
       // Add new listeners
-      img.addEventListener('mouseenter', handleImageHover);
-      img.addEventListener('mouseleave', handleImageLeave);
+      img.addEventListener("mouseenter", handleImageHover);
+      img.addEventListener("mouseleave", handleImageLeave);
     });
   }
-  
+
   // Handle image hover
   function handleImageHover(event) {
     const img = event.target;
-    
+
     if (!isValidImage(img)) return;
-    
+
     // Delay showing button slightly to avoid flickering
     setTimeout(() => {
-      if (img.matches(':hover')) {
+      if (img.matches(":hover")) {
         showHoverButton(img);
       }
     }, 200);
   }
-  
+
   // Handle image leave
   function handleImageLeave(event) {
     // Delay hiding to allow moving to button
     setTimeout(() => {
-      const button = document.getElementById('drippler-image-hover-btn');
-      if (button && !button.matches(':hover') && !event.target.matches(':hover')) {
+      const button = document.getElementById("drippler-image-hover-btn");
+      if (
+        button &&
+        !button.matches(":hover") &&
+        !event.target.matches(":hover")
+      ) {
         hideHoverButton();
       }
     }, 100);
   }
-  
+
   // Initial setup
   addImageListeners();
-  
+
   // Watch for new images added to the page
   const observer = new MutationObserver((mutations) => {
     let newImages = false;
-    
+
     mutations.forEach((mutation) => {
-      if (mutation.type === 'childList') {
+      if (mutation.type === "childList") {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.tagName === 'IMG') {
+            if (node.tagName === "IMG") {
               newImages = true;
-            } else if (node.querySelectorAll && node.querySelectorAll('img').length > 0) {
+            } else if (
+              node.querySelectorAll &&
+              node.querySelectorAll("img").length > 0
+            ) {
               newImages = true;
             }
           }
         });
       }
     });
-    
+
     if (newImages) {
       // Debounce to avoid excessive calls
       clearTimeout(addImageListeners.timeout);
       addImageListeners.timeout = setTimeout(addImageListeners, 500);
     }
   });
-  
+
   observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
   });
-  
+
   // Handle scroll to reposition button
   let scrollTimeout;
-  window.addEventListener('scroll', () => {
-    if (hoverButton && currentImage && hoverButton.style.display === 'block') {
+  window.addEventListener("scroll", () => {
+    if (hoverButton && currentImage && hoverButton.style.display === "block") {
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
-        if (currentImage.matches(':hover')) {
+        if (currentImage.matches(":hover")) {
           positionHoverButton(currentImage, hoverButton);
         } else {
           hideHoverButton();
@@ -843,8 +872,8 @@ function setupImageHoverFunctionality() {
       }, 100);
     }
   });
-  
-  console.log('Image hover functionality setup complete');
+
+  console.log("Image hover functionality setup complete");
 }
 
 // Setup page-specific functionality

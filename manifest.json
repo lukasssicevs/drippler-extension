@@ -42,6 +42,8 @@
     {
       "resources": [
         "lib/*",
+        "assets/drip-animation.webp",
+        "assets/drip-static.webp",
         "phosphor-regular.css",
         "phosphor-bold.css",
         "phosphor-fill.css",

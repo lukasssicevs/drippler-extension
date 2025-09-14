@@ -1513,6 +1513,12 @@ body {
   border-radius: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   object-fit: contain;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.try-on-view-image:hover {
+  opacity: 0.9;
 }
 
 /* Close button positioning for try-on result modal */
@@ -1669,7 +1675,7 @@ body {
   color: black !important;
 }
 
-/* Custom styling for "Add as Avatar" buttons - pink background with white text */
+/* Custom styling for "Add to Avatars" buttons - pink background with white text */
 #addAsAvatarBtn,
 #addAsAvatarFromViewBtn {
   background: var(--accent-primary) !important;
