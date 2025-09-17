@@ -191,6 +191,172 @@ function showNotification(message, type = "info") {
   }, delay);
 }
 
+// Create internal confirmation dialog
+function showConfirmDialog(
+  title,
+  message,
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  type = "danger"
+) {
+  return new Promise((resolve) => {
+    // Remove any existing confirmation dialogs
+    const existingDialog = document.querySelector(".confirmation-dialog");
+    if (existingDialog) {
+      existingDialog.remove();
+    }
+
+    // Create dialog
+    const dialog = document.createElement("div");
+    dialog.className = "confirmation-dialog";
+    dialog.innerHTML = `
+      <div class="confirmation-backdrop"></div>
+      <div class="confirmation-content">
+        <div class="confirmation-header">
+          <h3 class="confirmation-title">${title}</h3>
+        </div>
+        <div class="confirmation-body">
+          <p class="confirmation-message">${message}</p>
+        </div>
+        <div class="confirmation-actions">
+          <button class="btn secondary confirmation-cancel">${cancelText}</button>
+          <button class="btn ${type} confirmation-confirm">${confirmText}</button>
+        </div>
+      </div>
+    `;
+
+    // Add styles if not already present
+    if (!document.getElementById("confirmation-dialog-styles")) {
+      const styles = document.createElement("style");
+      styles.id = "confirmation-dialog-styles";
+      styles.textContent = `
+        .confirmation-dialog {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .confirmation-backdrop {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(4px);
+        }
+
+        .confirmation-content {
+          position: relative;
+          background: var(--bg-primary, #ffffff);
+          border-radius: 12px;
+          max-width: 400px;
+          width: 90%;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          animation: confirmationSlideIn 0.2s ease-out;
+        }
+
+        @keyframes confirmationSlideIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9) translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        .confirmation-header {
+          padding: 24px 24px 16px 24px;
+        }
+
+        .confirmation-title {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: var(--text-primary, #1a1a1a);
+        }
+
+        .confirmation-body {
+          padding: 0 24px 24px 24px;
+        }
+
+        .confirmation-message {
+          margin: 0;
+          font-size: 14px;
+          line-height: 1.5;
+          color: var(--text-secondary, #6b7280);
+        }
+
+        .confirmation-actions {
+          padding: 16px 24px 24px 24px;
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .confirmation-actions .btn {
+          min-width: 80px;
+        }
+
+        .btn.danger {
+          background: #dc2626;
+          color: white;
+          border: 1px solid #dc2626;
+        }
+
+        .btn.danger:hover {
+          background: #b91c1c;
+          border-color: #b91c1c;
+        }
+      `;
+      document.head.appendChild(styles);
+    }
+
+    // Add event listeners
+    const confirmBtn = dialog.querySelector(".confirmation-confirm");
+    const cancelBtn = dialog.querySelector(".confirmation-cancel");
+    const backdrop = dialog.querySelector(".confirmation-backdrop");
+
+    const handleConfirm = () => {
+      dialog.remove();
+      resolve(true);
+    };
+
+    const handleCancel = () => {
+      dialog.remove();
+      resolve(false);
+    };
+
+    confirmBtn.addEventListener("click", handleConfirm);
+    cancelBtn.addEventListener("click", handleCancel);
+    backdrop.addEventListener("click", handleCancel);
+
+    // Handle Escape key
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        document.removeEventListener("keydown", handleEscape);
+        handleCancel();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+
+    // Add to DOM
+    document.body.appendChild(dialog);
+
+    // Focus the confirm button for accessibility
+    setTimeout(() => confirmBtn.focus(), 100);
+  });
+}
+
 function openSettings() {
   console.log("Opening settings...");
 
@@ -368,9 +534,7 @@ async function handleTestWebApp() {
 
 function openHelp() {
   console.log("Opening help...");
-  chrome.tabs.create({
-    url: "https://github.com/your-repo/drippler-extension",
-  });
+  window.open("https://github.com/your-repo/drippler-extension", "_blank");
 }
 
 // Authentication event listeners
@@ -1169,7 +1333,7 @@ function handleClothingGridClick(event) {
 function openSourceLink(sourceUrl) {
   try {
     // Open the source URL in a new tab
-    chrome.tabs.create({ url: sourceUrl });
+    window.open(sourceUrl, "_blank");
   } catch (error) {
     console.error("Error opening source link:", error);
     showError("Failed to open source link");
@@ -1380,7 +1544,7 @@ function showTryOnResult(resultData) {
 
   // Add click listener to image to open in new tab
   modal.querySelector(".try-on-view-image").addEventListener("click", () => {
-    window.open(resultData.generatedImageUrl, '_blank');
+    window.open(resultData.generatedImageUrl, "_blank");
   });
 
   document.body.appendChild(modal);
@@ -2163,7 +2327,7 @@ function showFullSizeTryOn(imageUrl) {
 
   // Add click listener to image to open in new tab
   modal.querySelector(".try-on-view-image").addEventListener("click", () => {
-    window.open(imageUrl, '_blank');
+    window.open(imageUrl, "_blank");
   });
 
   document.body.appendChild(modal);
@@ -2235,19 +2399,29 @@ async function deleteTryOn(generationId) {
 }
 
 async function handleDeleteAccount() {
-  if (
-    !confirm(
-      "Are you sure you want to delete your account? This action cannot be undone."
-    )
-  ) {
+  // First confirmation
+  const firstConfirm = await showConfirmDialog(
+    "Delete Account",
+    "Are you sure you want to delete your account? This action cannot be undone.",
+    "Delete Account",
+    "Cancel",
+    "danger"
+  );
+
+  if (!firstConfirm) {
     return;
   }
 
-  if (
-    !confirm(
-      "This will permanently delete all your data, including profile, wardrobe, and try-ons. Are you absolutely sure?"
-    )
-  ) {
+  // Second confirmation (extra safety)
+  const secondConfirm = await showConfirmDialog(
+    "Final Confirmation",
+    "This will permanently delete all your data, including profile, wardrobe, and try-ons. Are you absolutely sure?",
+    "Yes, Delete Everything",
+    "Cancel",
+    "danger"
+  );
+
+  if (!secondConfirm) {
     return;
   }
 
@@ -2344,8 +2518,12 @@ async function updateSubscriptionUI() {
     const subscriptionBadge = document.getElementById("subscriptionBadge");
     const subscriptionText = document.getElementById("subscriptionText");
     const upgradeBtn = document.getElementById("upgradeBtn");
-    const cancelSubscriptionBtn = document.getElementById("cancelSubscriptionBtn");
-    const subscriptionEndingNotice = document.getElementById("subscriptionEndingNotice");
+    const cancelSubscriptionBtn = document.getElementById(
+      "cancelSubscriptionBtn"
+    );
+    const subscriptionEndingNotice = document.getElementById(
+      "subscriptionEndingNotice"
+    );
 
     if (response && response.success) {
       const isPro = response.isPro || false;
@@ -2353,7 +2531,9 @@ async function updateSubscriptionUI() {
 
       // Update badge
       subscriptionText.textContent = isPro ? "Pro" : "Free";
-      subscriptionBadge.className = `subscription-badge ${isPro ? "pro" : "free"}`;
+      subscriptionBadge.className = `subscription-badge ${
+        isPro ? "pro" : "free"
+      }`;
 
       // Hide all buttons/notices first using CSS classes
       upgradeBtn.classList.add("hidden");
@@ -2376,7 +2556,12 @@ async function updateSubscriptionUI() {
 
       // Update generation stats display if available
       if (response.monthlyLimit && response.currentCount !== undefined) {
-        updateGenerationStatsDisplay(response.currentCount, response.monthlyLimit, response.remainingGenerations, isPro);
+        updateGenerationStatsDisplay(
+          response.currentCount,
+          response.monthlyLimit,
+          response.remainingGenerations,
+          isPro
+        );
       }
     } else {
       // Default to free if no subscription info
@@ -2394,7 +2579,9 @@ async function updateSubscriptionUI() {
     const subscriptionBadge = document.getElementById("subscriptionBadge");
     const subscriptionText = document.getElementById("subscriptionText");
     const upgradeBtn = document.getElementById("upgradeBtn");
-    const cancelSubscriptionBtn = document.getElementById("cancelSubscriptionBtn");
+    const cancelSubscriptionBtn = document.getElementById(
+      "cancelSubscriptionBtn"
+    );
 
     subscriptionText.textContent = "Free";
     subscriptionBadge.className = "subscription-badge free";
@@ -2406,10 +2593,16 @@ async function updateSubscriptionUI() {
   }
 }
 
-function updateGenerationStatsDisplay(currentCount, monthlyLimit, remainingGenerations, isPro = false) {
+function updateGenerationStatsDisplay(
+  currentCount,
+  monthlyLimit,
+  remainingGenerations,
+  isPro = false
+) {
   const generationCountElement = document.getElementById("generationCount");
   const generationLimitElement = document.getElementById("generationLimit");
-  const generationPlanTextElement = document.getElementById("generationPlanText");
+  const generationPlanTextElement =
+    document.getElementById("generationPlanText");
 
   if (generationCountElement && generationLimitElement) {
     generationCountElement.textContent = currentCount || 0;
@@ -2464,7 +2657,7 @@ function updateGenerationStatsDisplay(currentCount, monthlyLimit, remainingGener
 
 async function handleUpgradeToPro() {
   const upgradeBtn = document.getElementById("upgradeBtn");
-  
+
   try {
     // Show loading state
     upgradeBtn.disabled = true;
@@ -2480,11 +2673,11 @@ async function handleUpgradeToPro() {
 
     if (response && response.success && response.checkoutUrl) {
       // Redirect to Stripe checkout
-      chrome.tabs.create({ url: response.checkoutUrl });
-      
+      window.open(response.checkoutUrl, "_blank");
+
       // Close the modal after redirect
       closeProfileModal();
-      
+
       showSuccess("Redirecting to payment...");
     } else {
       throw new Error(response.error || "Failed to create checkout session");
@@ -2506,8 +2699,12 @@ async function handleCancelSubscription() {
   const cancelBtn = document.getElementById("cancelSubscriptionBtn");
 
   // Show confirmation dialog
-  const confirmed = confirm(
-    "Are you sure you want to cancel your subscription? You'll continue to have Pro access until the end of your current billing period, then you'll be downgraded to the Free plan."
+  const confirmed = await showConfirmDialog(
+    "Cancel Subscription",
+    "Are you sure you want to cancel your subscription? You'll continue to have Pro access until the end of your current billing period, then you'll be downgraded to the Free plan.",
+    "Cancel Subscription",
+    "Keep",
+    "danger"
   );
 
   if (!confirmed) {
@@ -2528,7 +2725,9 @@ async function handleCancelSubscription() {
     });
 
     if (response && response.success) {
-      showSuccess("Subscription canceled successfully. You'll keep Pro access until the end of your billing period.");
+      showSuccess(
+        "Subscription canceled successfully. You'll keep Pro access until the end of your billing period."
+      );
 
       // Close the modal
       closeProfileModal();

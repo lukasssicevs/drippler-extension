@@ -3,14 +3,7 @@
   "name": "Drippler Extension",
   "version": "1.0.0",
   "description": "Drippler is your digital wardrobe assistant — preview outfits, mix and match, and save your perfect looks.",
-  "permissions": [
-    "storage",
-    "activeTab",
-    "tabs",
-    "scripting",
-    "contextMenus",
-    "notifications"
-  ],
+  "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["https://*/*", "https://drippler-web.vercel.app/"],
   "background": {
     "service_worker": "background.js"
@@ -41,7 +34,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "lib/*",
         "assets/drip-animation.webp",
         "assets/drip-static.webp",
         "phosphor-regular.css",

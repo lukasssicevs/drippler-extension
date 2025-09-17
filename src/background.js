@@ -28,15 +28,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   // Initialize Supabase on installation with retry
   await initializeSupabaseWithRetry();
 
-  // Setup context menus
-  setupContextMenus();
+  // Context menus removed to reduce permissions
 });
 
 // Extension startup handler
 chrome.runtime.onStartup.addListener(async () => {
   console.log("Drippler Extension starting up");
   await initializeSupabaseWithRetry();
-  setupContextMenus();
+  // Context menus removed to reduce permissions
 });
 
 // Message handler for popup and content script communication
@@ -1237,75 +1236,8 @@ async function setupAuthStateListener() {
   });
 }
 
-// Setup context menus
-function setupContextMenus() {
-  try {
-    // Remove any existing context menus
-    chrome.contextMenus.removeAll(() => {
-      // Create context menu for images
-      chrome.contextMenus.create({
-        id: "save-image-as-clothing",
-        title: "Add to Drippler Wardrobe",
-        contexts: ["image"],
-        documentUrlPatterns: ["http://*/*", "https://*/*"],
-      });
-
-      console.log("Context menus setup successfully");
-    });
-  } catch (error) {
-    console.error("Error setting up context menus:", error);
-  }
-}
-
-// Handle context menu clicks
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  try {
-    console.log("Context menu clicked:", info.menuItemId);
-
-    if (info.menuItemId === "save-image-as-clothing") {
-      // Check if user is authenticated
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabaseClient.auth.getSession();
-
-      if (sessionError || !session) {
-        // Show popup to sign in
-        chrome.action.openPopup();
-        return;
-      }
-
-      // Save the image URL as clothing item
-      const imageUrl = info.srcUrl;
-      const pageUrl = info.pageUrl;
-      const pageTitle = tab.title;
-
-      await handleSaveImageAsClothing(
-        {
-          imageUrl,
-          pageUrl,
-          pageTitle,
-          source: "context_menu",
-        },
-        (response) => {
-          if (response.success) {
-            // Show notification
-            chrome.notifications.create({
-              type: "basic",
-              iconUrl: "icons/icon48.png",
-              title: "Drippler",
-              message: "Clothing item added to your wardrobe!",
-            });
-          } else {
-            console.error("Failed to save clothing item:", response.error);
-          }
-        }
-      );
-    }
-  } catch (error) {
-    console.error("Error handling context menu click:", error);
-  }
-});
+// Context menu functionality removed to reduce permissions
+// Users can still add images using the hover button in content script
 
 // Helper function to convert image URL to blob
 async function urlToBlob(url) {
