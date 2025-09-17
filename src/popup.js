@@ -10,7 +10,7 @@ let isAuthenticated = false;
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("Drippler Extension Popup loaded");
 
-  // Initialize UI elements
+  // Initialize UI elements immediately
   initializeUI();
 
   // Load extension info
@@ -22,53 +22,104 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Setup authentication event listeners
   setupAuthEventListeners();
 
-  // Wait for Supabase to be ready, then check authentication
+  // Show loading state first
+  showLoadingState();
+  updateStatus("connecting", "Connecting...");
+
+  // Initialize Supabase in background (non-blocking)
+  initializeSupabaseAsync();
+});
+
+// Async Supabase initialization that doesn't block UI
+async function initializeSupabaseAsync() {
   try {
-    console.log("Starting Supabase initialization...");
-    const isReady = await waitForSupabaseReady();
-    console.log("Supabase ready:", isReady);
+    console.log("Starting background Supabase initialization...");
+
+    // Add a small delay to let UI render first
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const isReady = await waitForSupabaseReadyWithTimeout();
 
     if (isReady) {
-      console.log("Checking current user...");
+      console.log("Supabase ready, checking authentication...");
       await checkCurrentUser();
     } else {
-      console.error("Supabase failed to initialize");
-      updateStatus("error", "Connection failed");
-      showError(
-        "Failed to connect to Supabase. Please try refreshing the extension."
-      );
-
-      // Show auth forms anyway to allow manual retry
-      setTimeout(() => {
-        showAuthForms();
-      }, 2000);
+      console.log("Supabase connection failed, using offline mode");
+      updateStatus("offline", "Offline mode");
+      showError("Connection failed. Some features may be limited.");
+      // Show auth forms as fallback when connection fails
+      showAuthForms();
     }
   } catch (error) {
-    console.error("Initialization error:", error);
-    updateStatus("error", "Initialization failed");
-    showError("Extension initialization failed: " + error.message);
+    console.error("Background initialization error:", error);
+    updateStatus("offline", "Offline mode");
+    // Show auth forms as fallback when initialization fails
+    showAuthForms();
+    // Don't show error here as it might be temporary
+  }
+}
 
-    // Show auth forms as fallback
-    setTimeout(() => {
-      showAuthForms();
-    }, 2000);
+// Modified waitForSupabaseReady with shorter timeout for better UX
+async function waitForSupabaseReadyWithTimeout() {
+  updateStatus("connecting", "Connecting...");
+
+  const maxRetries = 3; // Reduced from 8
+  const retryDelay = 500; // Reduced from 1000ms
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Add timeout to prevent hanging on sleeping service worker
+      const response = await Promise.race([
+        chrome.runtime.sendMessage({ action: "checkSupabaseStatus" }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Service worker timeout")), 2000)
+        )
+      ]);
+
+      if (response && response.connected) {
+        updateStatus("ready", "Connected");
+        return true;
+      }
+
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      }
+    } catch (error) {
+      console.error(`Connection attempt ${attempt} failed:`, error);
+
+      // If service worker is sleeping, this will wake it up
+      if (error.message === "Service worker timeout" || error.message?.includes("Could not establish connection")) {
+        console.log("Service worker appears to be sleeping, waking it up...");
+        updateStatus("connecting", "Waking up service worker...");
+      }
+
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      }
+    }
   }
 
-  // Fallback timeout to ensure UI shows after 10 seconds
-  setTimeout(() => {
-    const authForms = document.getElementById("authForms");
-    const userDashboard = document.getElementById("userDashboard");
+  // Try force initialization once
+  try {
+    updateStatus("connecting", "Retrying connection...");
 
-    if (
-      authForms.style.display === "none" &&
-      userDashboard.style.display === "none"
-    ) {
-      console.log("Fallback: Showing auth forms after timeout");
-      updateStatus("ready", "Ready");
-      showAuthForms();
+    const response = await Promise.race([
+      chrome.runtime.sendMessage({ action: "forceInitSupabase" }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Force init timeout")), 3000)
+      )
+    ]);
+
+    if (response && response.success && response.connected) {
+      updateStatus("ready", "Connected");
+      return true;
     }
-  }, 10000);
-});
+  } catch (error) {
+    console.error("Force initialization failed:", error);
+  }
+
+  return false;
+}
 
 function initializeUI() {
   const statusIndicator = document.getElementById("statusIndicator");
@@ -91,9 +142,112 @@ function setupEventListeners() {
   console.log("Basic event listeners initialized");
 }
 
+function showLoadingState() {
+  const authForms = document.getElementById("authForms");
+  const userDashboard = document.getElementById("userDashboard");
+  const container = document.querySelector(".container");
+
+  if (authForms && userDashboard && container) {
+    // Hide both main content areas
+    authForms.style.display = "none";
+    userDashboard.style.display = "none";
+
+    // Remove any existing loading overlay
+    const existingLoader = document.querySelector(".loading-overlay");
+    if (existingLoader) {
+      existingLoader.remove();
+    }
+
+    // Create loading overlay
+    const loadingOverlay = document.createElement("div");
+    loadingOverlay.className = "loading-overlay";
+    loadingOverlay.innerHTML = `
+      <div class="loading-content">
+        <div class="loading-spinner">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+            <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" fill="currentColor">
+              <animateTransform attributeName="transform" dur="0.75s" repeatCount="indefinite" type="rotate" values="0 12 12;360 12 12"/>
+            </path>
+          </svg>
+        </div>
+        <div class="loading-text">Loading Drippler...</div>
+        <div class="loading-subtext">Connecting to your wardrobe</div>
+      </div>
+    `;
+
+    // Add styles for loading overlay
+    if (!document.getElementById("loading-overlay-styles")) {
+      const styles = document.createElement("style");
+      styles.id = "loading-overlay-styles";
+      styles.textContent = `
+        .loading-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg-primary, #ffffff);
+          z-index: 1000;
+        }
+
+        .loading-content {
+          text-align: center;
+          animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loading-spinner {
+          margin-bottom: 16px;
+          display: flex;
+          justify-content: center;
+        }
+
+        .loading-spinner svg {
+          color: var(--accent-primary, #bd5dee);
+          width: 32px;
+          height: 32px;
+        }
+
+        .loading-text {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--text-primary, #1a1a1a);
+          margin-bottom: 4px;
+        }
+
+        .loading-subtext {
+          font-size: 13px;
+          color: var(--text-secondary, #6b7280);
+        }
+      `;
+      document.head.appendChild(styles);
+    }
+
+    // Add to container
+    container.appendChild(loadingOverlay);
+  }
+}
+
+function hideLoadingState() {
+  const loadingOverlay = document.querySelector(".loading-overlay");
+  if (loadingOverlay) {
+    loadingOverlay.remove();
+  }
+}
+
 function showAuthForms() {
   const authForms = document.getElementById("authForms");
   const userDashboard = document.getElementById("userDashboard");
+
+  // Hide loading state first
+  hideLoadingState();
 
   if (authForms && userDashboard) {
     authForms.style.display = "block";
@@ -102,57 +256,7 @@ function showAuthForms() {
   }
 }
 
-async function waitForSupabaseReady() {
-  updateStatus("initializing", "Connecting to Supabase...");
-
-  const maxRetries = 8; // Reduced retries
-  const retryDelay = 1000; // Increased delay to 1s
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: "checkSupabaseStatus",
-      });
-
-      if (response.connected) {
-        updateStatus("ready", "Ready for authentication");
-        return true;
-      }
-
-      // If not connected yet, wait before retrying
-      if (attempt < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      }
-    } catch (error) {
-      console.error(`Initialization check attempt ${attempt} failed:`, error);
-      if (attempt < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      }
-    }
-  }
-
-  // If we get here, try force initialization
-  console.log("Initial checks failed, attempting force initialization...");
-  updateStatus("initializing", "Retrying connection...");
-
-  try {
-    const response = await chrome.runtime.sendMessage({
-      action: "forceInitSupabase",
-    });
-
-    if (response.success && response.connected) {
-      updateStatus("ready", "Ready for authentication");
-      return true;
-    }
-  } catch (error) {
-    console.error("Force initialization failed:", error);
-  }
-
-  // If everything fails
-  updateStatus("error", "Failed to connect to Supabase");
-  showError("Failed to initialize. Please try refreshing the extension.");
-  return false;
-}
+// Old waitForSupabaseReady function removed - replaced with waitForSupabaseReadyWithTimeout
 
 function updateStatus(status, text) {
   // Status bar removed - just log for debugging
@@ -860,16 +964,22 @@ async function checkCurrentUser() {
     updateStatus("checking", "Checking authentication...");
 
     // First try to refresh the session (this handles post-verification scenarios)
-    const refreshResponse = await chrome.runtime.sendMessage({
-      action: "refreshUserSession",
-    });
+    const refreshResponse = await Promise.race([
+      chrome.runtime.sendMessage({ action: "refreshUserSession" }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Refresh timeout")), 3000)
+      )
+    ]);
 
     // Use the refresh response if successful, otherwise fallback to getCurrentUser
     let response = refreshResponse;
-    if (!refreshResponse.success || !refreshResponse.user) {
-      response = await chrome.runtime.sendMessage({
-        action: "getCurrentUser",
-      });
+    if (!refreshResponse || !refreshResponse.success || !refreshResponse.user) {
+      response = await Promise.race([
+        chrome.runtime.sendMessage({ action: "getCurrentUser" }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Get user timeout")), 3000)
+        )
+      ]);
     }
 
     if (response.success && response.user) {
@@ -923,6 +1033,9 @@ function updateAuthState() {
   const userDashboard = document.getElementById("userDashboard");
   const dashboardHeader = document.getElementById("dashboardHeader");
   const actionsSection = document.querySelector(".actions-section");
+
+  // Hide loading state when showing final UI
+  hideLoadingState();
 
   if (isAuthenticated && currentUser) {
     // Show user dashboard and hide auth forms

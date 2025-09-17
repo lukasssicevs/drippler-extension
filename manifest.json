@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Drippler Extension",
   "version": "1.0.0",
-  "description": "Drippler is your digital wardrobe assistant — preview outfits, mix and match, and save your perfect looks.",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "description": "Drippler is your digital AI wardrobe assistant — preview outfits, mix and match, and save your perfect looks.",
+  "permissions": ["storage", "activeTab"],
   "host_permissions": ["https://*/*", "https://drippler-web.vercel.app/"],
   "background": {
     "service_worker": "background.js"
