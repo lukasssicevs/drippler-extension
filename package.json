@@ -1,7 +1,7 @@
 {
   "name": "drippler-extension",
-  "version": "1.0.1",
-  "description": "A Chrome extension with Supabase integration",
+  "version": "1.0.0",
+  "description": "Drippler is your digital AI wardrobe assistant — preview outfits, mix and match, and save your perfect looks.",
   "main": "background.js",
   "scripts": {
     "build": "webpack --mode=production",

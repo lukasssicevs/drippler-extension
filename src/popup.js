@@ -1553,6 +1553,7 @@ async function tryOnClothingItem(itemId) {
 
     // Show loading state
     updateStatus("generating", "Generating virtual try-on...");
+    showGlobalGenerationOverlay();
 
     // Request virtual try-on generation from background script
     const tryOnResponse = await chrome.runtime.sendMessage({
@@ -1588,8 +1589,9 @@ async function tryOnClothingItem(itemId) {
     showError("Error generating virtual try-on: " + error.message);
     updateStatus("authenticated", "Authenticated");
   } finally {
-    // Always reset the button state
+    // Always reset the button state and hide global overlay
     resetGenerateButton(itemId);
+    hideGlobalGenerationOverlay();
   }
 }
 
@@ -3123,4 +3125,107 @@ function showUnsupportedFileModal() {
   document.addEventListener("keydown", handleEscape);
 
   document.body.appendChild(modal);
+}
+
+// Global generation overlay functions
+function showGlobalGenerationOverlay() {
+  // Remove existing overlay if present
+  hideGlobalGenerationOverlay();
+
+  const overlay = document.createElement("div");
+  overlay.id = "globalGenerationOverlay";
+  overlay.className = "global-generation-overlay";
+  overlay.innerHTML = `
+    <div class="generation-overlay-content">
+      <div class="generation-spinner">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" fill="currentColor">
+            <animateTransform attributeName="transform" dur="0.75s" repeatCount="indefinite" type="rotate" values="0 12 12;360 12 12"/>
+          </path>
+        </svg>
+      </div>
+      <div class="generation-text-content">
+        <div class="generation-text">Generating Virtual Try-On</div>
+        <div class="generation-subtext">This may take a few moments...</div>
+      </div>
+    </div>
+  `;
+
+  // Add styles
+  if (!document.getElementById("global-generation-styles")) {
+    const styles = document.createElement("style");
+    styles.id = "global-generation-styles";
+    styles.textContent = `
+      .global-generation-overlay {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        background: var(--bg-primary, #ffffff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        z-index: 10000;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 280px;
+        pointer-events: auto;
+      }
+
+      .generation-overlay-content {
+        display: flex;
+        align-items: center;
+        animation: slideInRight 0.3s ease-out;
+      }
+
+      @keyframes slideInRight {
+        from {
+          opacity: 0;
+          transform: translateX(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .generation-spinner {
+        margin-right: 12px;
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .generation-spinner svg {
+        color: var(--accent-primary, #bd5dee);
+        width: 20px;
+        height: 20px;
+      }
+
+      .generation-text-content {
+        flex: 1;
+      }
+
+      .generation-text {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary, #1a1a1a);
+        margin-bottom: 2px;
+      }
+
+      .generation-subtext {
+        font-size: 12px;
+        color: var(--text-secondary, #6b7280);
+      }
+    `;
+    document.head.appendChild(styles);
+  }
+
+  document.body.appendChild(overlay);
+}
+
+function hideGlobalGenerationOverlay() {
+  const overlay = document.getElementById("globalGenerationOverlay");
+  if (overlay) {
+    overlay.remove();
+  }
 }
