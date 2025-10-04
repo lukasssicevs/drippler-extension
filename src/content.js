@@ -8,6 +8,7 @@ console.log(
 // Global variables
 let isExtensionActive = false;
 let supabaseReady = false;
+let addToDripplerEnabled = true; // Default to enabled
 
 // Initialize content script
 (function init() {
@@ -26,6 +27,9 @@ let supabaseReady = false;
 
   // Check Supabase connection status
   checkSupabaseConnection();
+
+  // Load Add to Drippler setting
+  loadAddToDripplerSetting();
 })();
 
 // Check if extension should be active on current page
@@ -377,6 +381,17 @@ function setupMessageListeners() {
       case "authStateChanged":
         handleAuthStateChange(request);
         break;
+      case "updateAddToDripplerSetting":
+        addToDripplerEnabled = request.enabled;
+        console.log("Add to Drippler setting updated:", addToDripplerEnabled);
+        // Hide hover button if disabled
+        if (!addToDripplerEnabled) {
+          const hoverButton = document.getElementById("drippler-image-hover-btn");
+          if (hoverButton) {
+            hoverButton.style.display = "none";
+          }
+        }
+        break;
     }
   });
 }
@@ -720,6 +735,11 @@ function setupImageHoverFunctionality() {
 
   // Show hover button
   function showHoverButton(image) {
+    // Check if Add to Drippler functionality is enabled
+    if (!addToDripplerEnabled) {
+      return;
+    }
+
     if (!hoverButton) {
       hoverButton = createHoverButton();
     }
@@ -965,3 +985,15 @@ window.addEventListener("beforeunload", () => {
   console.log("Drippler Extension content script unloading...");
   closeQuickMenu();
 });
+
+// Load Add to Drippler setting from storage
+async function loadAddToDripplerSetting() {
+  try {
+    const result = await chrome.storage.sync.get(['addToDripplerEnabled']);
+    addToDripplerEnabled = result.addToDripplerEnabled !== false; // Default to true
+    console.log("Loaded Add to Drippler setting:", addToDripplerEnabled);
+  } catch (error) {
+    console.error("Error loading Add to Drippler setting:", error);
+    addToDripplerEnabled = true; // Default to enabled on error
+  }
+}

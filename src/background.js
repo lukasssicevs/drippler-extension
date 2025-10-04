@@ -184,6 +184,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleCancelSubscription(sendResponse);
       break;
 
+    case "updateAddToDripplerSetting":
+      handleUpdateAddToDripplerSetting(request.enabled, sendResponse);
+      break;
+
     default:
       console.warn("Unknown action:", request.action);
       sendResponse({ success: false, error: "Unknown action" });
@@ -2858,6 +2862,44 @@ async function handleCancelSubscription(sendResponse) {
     });
   } catch (error) {
     console.error("Error canceling subscription:", error);
+    sendResponse({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+// Handle updating Add to Drippler setting across all tabs
+async function handleUpdateAddToDripplerSetting(enabled, sendResponse) {
+  try {
+    console.log("Updating Add to Drippler setting to:", enabled);
+
+    // Get all tabs and notify their content scripts
+    const tabs = await chrome.tabs.query({});
+    const notifications = tabs.map(async (tab) => {
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          action: 'updateAddToDripplerSetting',
+          enabled: enabled
+        });
+        console.log(`Notified tab ${tab.id} of setting change`);
+      } catch (error) {
+        // Ignore errors for tabs that don't have content script
+        console.log(`Could not notify tab ${tab.id} - likely no content script`);
+      }
+    });
+
+    // Wait for all notifications to complete (or fail)
+    await Promise.allSettled(notifications);
+
+    sendResponse({
+      success: true,
+      message: 'Setting updated across all tabs',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error updating Add to Drippler setting:", error);
     sendResponse({
       success: false,
       error: error.message,

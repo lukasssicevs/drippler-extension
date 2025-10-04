@@ -348,11 +348,28 @@
             </div>
           </div>
 
+          <div class="profile-modal-settings">
+            <div class="setting-group">
+              <h4>Browsing Settings</h4>
+              <div class="setting-item">
+                <div class="setting-toggle">
+                  <input type="checkbox" id="addToDripplerToggle" checked />
+                  <label for="addToDripplerToggle" class="toggle-label">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="setting-info">
+                  <span class="setting-title">"Add to Drippler" button</span>
+                  <span class="setting-description"
+                    >Show hover button on images</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="profile-modal-actions">
-            <button
-              class="action-btn upgrade-btn hidden"
-              id="upgradeBtn"
-            >
+            <button class="action-btn upgrade-btn hidden" id="upgradeBtn">
               <i class="ph ph-crown" style="font-size: 18px"></i>
               Upgrade to Pro
             </button>
@@ -370,7 +387,9 @@
               <i class="ph ph-info" style="font-size: 18px"></i>
               <div class="notice-text">
                 <span class="notice-title">Subscription Canceled</span>
-                <span class="notice-subtitle">Pro access until billing period ends</span>
+                <span class="notice-subtitle"
+                  >Pro access until billing period ends</span
+                >
               </div>
             </div>
             <button class="action-btn" id="modalSignOutBtn">

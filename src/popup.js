@@ -722,6 +722,11 @@ function setupAuthEventListeners() {
     .getElementById("cancelSubscriptionBtn")
     ?.addEventListener("click", handleCancelSubscription);
 
+  // Settings listeners
+  document
+    .getElementById("addToDripplerToggle")
+    ?.addEventListener("change", handleAddToDripplerToggle);
+
   // Profile modal backdrop click to close
   document.getElementById("profileModal")?.addEventListener("click", (e) => {
     if (e.target.id === "profileModal") {
@@ -2136,6 +2141,7 @@ function updateModalUserInfo() {
     // Load generation stats and subscription status
     loadGenerationStats();
     updateSubscriptionUI();
+    loadAddToDripplerSetting();
   }
 }
 
@@ -2863,6 +2869,48 @@ async function handleCancelSubscription() {
       <i class="ph ph-x-circle" style="font-size: 18px; margin-right: 8px;"></i>
       Cancel Subscription
     `;
+  }
+}
+
+// Settings management functions
+async function loadAddToDripplerSetting() {
+  try {
+    const result = await chrome.storage.sync.get(['addToDripplerEnabled']);
+    const enabled = result.addToDripplerEnabled !== false; // Default to true
+
+    const toggle = document.getElementById('addToDripplerToggle');
+    if (toggle) {
+      toggle.checked = enabled;
+    }
+  } catch (error) {
+    console.error('Error loading Add to Drippler setting:', error);
+    // Default to enabled if error
+    const toggle = document.getElementById('addToDripplerToggle');
+    if (toggle) {
+      toggle.checked = true;
+    }
+  }
+}
+
+async function handleAddToDripplerToggle(event) {
+  const enabled = event.target.checked;
+
+  try {
+    // Save to storage
+    await chrome.storage.sync.set({ addToDripplerEnabled: enabled });
+
+    // Notify background script to update all content scripts
+    chrome.runtime.sendMessage({
+      action: 'updateAddToDripplerSetting',
+      enabled: enabled
+    });
+
+    showSuccess(enabled ? 'Add to Drippler button enabled' : 'Add to Drippler button disabled');
+  } catch (error) {
+    console.error('Error saving Add to Drippler setting:', error);
+    showError('Failed to save setting');
+    // Revert toggle on error
+    event.target.checked = !enabled;
   }
 }
 
