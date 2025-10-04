@@ -1163,8 +1163,8 @@ async function handleClothingImageUpload(event) {
   });
 
   // Validate file type and size
-  if (!file.type.startsWith("image/")) {
-    showError("Please select a valid image file");
+  if (!isValidImageFile(file)) {
+    showUnsupportedFileModal();
     return;
   }
 
@@ -1725,6 +1725,17 @@ function updateAvatarButtonState(state) {
 async function handleAvatarFileUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
+
+  // Validate file type
+  if (!isValidImageFile(file)) {
+    showUnsupportedFileModal();
+    return;
+  }
+
+  if (file.size > 10 * 1024 * 1024) { // 10MB limit for avatars
+    showError("Image size must be less than 10MB");
+    return;
+  }
 
   try {
     updateAvatarButtonState("loading");
@@ -2934,3 +2945,182 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       break;
   }
 });
+
+// File validation helper function
+function isValidImageFile(file) {
+  // Check MIME type first (most reliable when available)
+  const validTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/bmp",
+    "image/tiff"
+  ];
+
+  if (file.type && validTypes.includes(file.type.toLowerCase())) {
+    return true;
+  }
+
+  // Fallback to file extension (handles browser MIME type issues)
+  const validExtensions = [
+    ".jpg", ".jpeg", ".png", ".gif", ".webp",
+    ".bmp", ".tiff"
+  ];
+  const fileName = file.name.toLowerCase();
+
+  return validExtensions.some(ext => fileName.endsWith(ext));
+}
+
+// Show modal for unsupported file types
+function showUnsupportedFileModal() {
+  const modal = document.createElement("div");
+  modal.className = "unsupported-file-modal";
+  modal.innerHTML = `
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Unsupported File Format</h3>
+      </div>
+      <div class="modal-body">
+        <p>Please select a supported image format:</p>
+        <div class="supported-formats">
+          <span class="format-tag">JPG</span>
+          <span class="format-tag">PNG</span>
+          <span class="format-tag">GIF</span>
+          <span class="format-tag">WebP</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn primary" id="okUnsupportedFile">Got it</button>
+      </div>
+    </div>
+  `;
+
+  // Add styles
+  if (!document.getElementById("unsupported-file-styles")) {
+    const styles = document.createElement("style");
+    styles.id = "unsupported-file-styles";
+    styles.textContent = `
+      .unsupported-file-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+
+      .modal-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+      }
+
+      .modal-content {
+        position: relative;
+        background: var(--bg-primary, #ffffff);
+        border-radius: 0;
+        max-width: 360px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.2s ease-out;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      @keyframes modalSlideIn {
+        from {
+          opacity: 0;
+          transform: scale(0.9) translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .modal-header {
+        padding: 24px 24px 16px 24px;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary, #1a1a1a);
+      }
+
+      .modal-body {
+        padding: 0 24px 24px 24px;
+      }
+
+      .modal-body p {
+        margin: 0 0 16px 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--text-secondary, #6b7280);
+      }
+
+      .supported-formats {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .format-tag {
+        background: var(--accent-primary, #bd5dee);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .modal-actions {
+        padding: 16px 24px 24px 24px;
+        display: flex;
+        justify-content: flex-end;
+        box-sizing: border-box;
+        width: 100%;
+      }
+
+      .modal-actions .btn {
+        min-width: 80px;
+        max-width: 100%;
+        box-sizing: border-box;
+        flex-shrink: 1;
+      }
+    `;
+    document.head.appendChild(styles);
+  }
+
+  // Add event listeners
+  const okBtn = modal.querySelector("#okUnsupportedFile");
+  const backdrop = modal.querySelector(".modal-backdrop");
+
+  const handleClose = () => modal.remove();
+
+  okBtn.addEventListener("click", handleClose);
+  backdrop.addEventListener("click", handleClose);
+
+  // Handle Escape key
+  const handleEscape = (e) => {
+    if (e.key === "Escape") {
+      document.removeEventListener("keydown", handleEscape);
+      handleClose();
+    }
+  };
+  document.addEventListener("keydown", handleEscape);
+
+  document.body.appendChild(modal);
+}
