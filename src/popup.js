@@ -59,56 +59,89 @@ async function initializeSupabaseAsync() {
   }
 }
 
-// Modified waitForSupabaseReady with shorter timeout for better UX
+// iOS Safari-optimized connection checking with better fallback
 async function waitForSupabaseReadyWithTimeout() {
   updateStatus("connecting", "Connecting...");
 
-  const maxRetries = 3; // Reduced from 8
-  const retryDelay = 500; // Reduced from 1000ms
+  const maxRetries = 5; // Increased retries for iOS Safari
+  const retryDelay = 800; // Slightly longer delay for mobile
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Add timeout to prevent hanging on sleeping service worker
+      console.log(`Connection attempt ${attempt}/${maxRetries}`);
+
+      // Longer timeout for iOS Safari - service worker may be slower
       const response = await Promise.race([
         chrome.runtime.sendMessage({ action: "checkSupabaseStatus" }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Service worker timeout")), 2000)
+          setTimeout(() => reject(new Error("Service worker timeout")), 3500)
         )
       ]);
+
+      console.log("Connection response:", response);
 
       if (response && response.connected) {
         updateStatus("ready", "Connected");
         return true;
       }
 
+      // iOS Safari specific: try immediate re-check if first response was negative
+      if (attempt === 1 && response && !response.connected) {
+        console.log("iOS Safari: Immediate re-check after negative response");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        const quickResponse = await Promise.race([
+          chrome.runtime.sendMessage({ action: "checkSupabaseStatus" }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Quick timeout")), 2000)
+          )
+        ]);
+
+        if (quickResponse && quickResponse.connected) {
+          updateStatus("ready", "Connected");
+          return true;
+        }
+      }
+
       if (attempt < maxRetries) {
+        updateStatus("connecting", `Connecting... (${attempt}/${maxRetries})`);
         await new Promise((resolve) => setTimeout(resolve, retryDelay));
       }
     } catch (error) {
       console.error(`Connection attempt ${attempt} failed:`, error);
 
-      // If service worker is sleeping, this will wake it up
+      // iOS Safari specific handling
       if (error.message === "Service worker timeout" || error.message?.includes("Could not establish connection")) {
-        console.log("Service worker appears to be sleeping, waking it up...");
-        updateStatus("connecting", "Waking up service worker...");
+        console.log("iOS Safari: Service worker issue detected, attempting wake-up...");
+        updateStatus("connecting", "Waking up connection...");
+
+        // Try a simple ping first
+        try {
+          await chrome.runtime.sendMessage({ action: "initSupabase" });
+        } catch (pingError) {
+          console.log("Ping failed, continuing with retry...");
+        }
       }
 
       if (attempt < maxRetries) {
+        updateStatus("connecting", `Retrying... (${attempt}/${maxRetries})`);
         await new Promise((resolve) => setTimeout(resolve, retryDelay));
       }
     }
   }
 
-  // Try force initialization once
+  // Final attempt with force initialization - iOS Safari may need this
   try {
-    updateStatus("connecting", "Retrying connection...");
+    updateStatus("connecting", "Final connection attempt...");
 
     const response = await Promise.race([
       chrome.runtime.sendMessage({ action: "forceInitSupabase" }),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Force init timeout")), 3000)
+        setTimeout(() => reject(new Error("Force init timeout")), 5000) // Longer timeout for iOS
       )
     ]);
+
+    console.log("Force init response:", response);
 
     if (response && response.success && response.connected) {
       updateStatus("ready", "Connected");
@@ -116,6 +149,18 @@ async function waitForSupabaseReadyWithTimeout() {
     }
   } catch (error) {
     console.error("Force initialization failed:", error);
+  }
+
+  // iOS Safari: One more check in case background script initialized during our attempts
+  try {
+    console.log("iOS Safari: Final status check...");
+    const finalCheck = await chrome.runtime.sendMessage({ action: "checkSupabaseStatus" });
+    if (finalCheck && finalCheck.connected) {
+      updateStatus("ready", "Connected");
+      return true;
+    }
+  } catch (error) {
+    console.log("Final check failed:", error);
   }
 
   return false;

@@ -4,7 +4,7 @@
   "description": "Drippler is your digital AI wardrobe assistant — preview outfits, mix and match, and save your perfect looks.",
   "main": "background.js",
   "scripts": {
-    "build": "webpack --mode=production",
+    "build": "webpack --mode=production && xcrun safari-web-extension-converter dist/ --project-location safari/",
     "dev": "webpack --mode=development --watch",
     "install-deps": "npm install"
   },
