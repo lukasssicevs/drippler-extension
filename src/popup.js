@@ -6,6 +6,20 @@ import { createIconHTML, IconNames, IconWeights } from "./icons.js";
 let currentUser = null;
 let isAuthenticated = false;
 
+// Universal Supabase call wrapper with auto-retry
+async function supabaseCall(action, data = {}) {
+  const response = await chrome.runtime.sendMessage({ action, ...data });
+
+  // If Supabase connection lost, retry once
+  if (response && !response.success && response.error?.includes('Supabase not connected')) {
+    await chrome.runtime.sendMessage({ action: "initSupabase" });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return await chrome.runtime.sendMessage({ action, ...data });
+  }
+
+  return response;
+}
+
 // Popup functionality
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("Drippler Extension Popup loaded");
@@ -577,11 +591,25 @@ function showSettingsModal() {
         }
         
         .close-btn {
-            background: none;
+            background: transparent;
             border: none;
             font-size: 20px;
             cursor: pointer;
-            color: #6c757d;
+            color: white;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
         }
         
         .settings-body {
@@ -838,10 +866,7 @@ async function handleLogin(event) {
   setButtonLoading(submitBtn, true);
 
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "signIn",
-      data: { email, password },
-    });
+    const response = await supabaseCall("signIn", { data: { email, password } });
 
     if (response.success) {
       showSuccess("Successfully signed in!");
@@ -885,10 +910,7 @@ async function handleSignup(event) {
   setButtonLoading(submitBtn, true);
 
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "signUp",
-      data: { email, password },
-    });
+    const response = await supabaseCall("signUp", { data: { email, password } });
 
     if (response.success) {
       showSuccess(
@@ -921,8 +943,7 @@ async function handlePasswordReset(event) {
   setButtonLoading(submitBtn, true);
 
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "resetPassword",
+    const response = await supabaseCall("resetPassword", {
       data: { email },
     });
 
@@ -966,8 +987,7 @@ async function handleUpdatePassword(event) {
   setButtonLoading(submitBtn, true);
 
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "updatePassword",
+    const response = await supabaseCall("updatePassword", {
       data: { password: newPassword },
     });
 
@@ -987,9 +1007,7 @@ async function handleUpdatePassword(event) {
 
 async function handleSignOut() {
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "signOut",
-    });
+    const response = await supabaseCall("signOut");
 
     if (response.success) {
       showSuccess("Successfully signed out!");
@@ -1291,8 +1309,7 @@ function showClothingUploadModal(file) {
           reader.readAsDataURL(file);
         });
 
-        const response = await chrome.runtime.sendMessage({
-          action: "uploadClothingItem",
+        const response = await supabaseCall("uploadClothingItem", {
           data: {
             fileData: base64Data,
             fileName: file.name,
@@ -1369,9 +1386,7 @@ async function loadClothingItems() {
       </div>
     `;
 
-    const response = await chrome.runtime.sendMessage({
-      action: "getClothingItems",
-    });
+    const response = await supabaseCall("getClothingItems");
 
     if (response.success) {
       displayClothingItems(response.data);
@@ -1516,8 +1531,7 @@ async function deleteClothingItem(itemId) {
   }
 
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "deleteClothingItem",
+    const response = await supabaseCall("deleteClothingItem", {
       data: { itemId },
     });
 
@@ -1564,9 +1578,7 @@ async function tryOnClothingItem(itemId) {
     }
 
     // Get the clothing item details
-    const clothingResponse = await chrome.runtime.sendMessage({
-      action: "getClothingItems",
-    });
+    const clothingResponse = await supabaseCall("getClothingItems");
 
     if (!clothingResponse.success) {
       showError("Failed to load clothing item");
@@ -1584,9 +1596,7 @@ async function tryOnClothingItem(itemId) {
     }
 
     // Get active avatar
-    const avatarResponse = await chrome.runtime.sendMessage({
-      action: "getActiveAvatar",
-    });
+    const avatarResponse = await supabaseCall("getActiveAvatar");
 
     if (!avatarResponse.success || !avatarResponse.avatar?.image_url) {
       showError(
@@ -1601,8 +1611,7 @@ async function tryOnClothingItem(itemId) {
     showGlobalGenerationOverlay();
 
     // Request virtual try-on generation from background script
-    const tryOnResponse = await chrome.runtime.sendMessage({
-      action: "generateVirtualTryOn",
+    const tryOnResponse = await supabaseCall("generateVirtualTryOn", {
       data: {
         userImageUrl: avatarResponse.avatar.image_url,
         clothingImageUrl: clothingItem.image_url,
@@ -1793,8 +1802,7 @@ async function handleAvatarFileUpload(event) {
     reader.onload = async function (e) {
       const base64Data = e.target.result;
 
-      const response = await chrome.runtime.sendMessage({
-        action: "uploadAvatar",
+      const response = await supabaseCall("uploadAvatar", {
         data: {
           fileData: base64Data,
           fileName: file.name,
@@ -1845,8 +1853,7 @@ async function addImageAsAvatar(imageUrl, buttonElement = null) {
     }
 
     // Use efficient addAvatarFromUrl action (no download/upload needed)
-    const response = await chrome.runtime.sendMessage({
-      action: "addAvatarFromUrl",
+    const response = await supabaseCall("addAvatarFromUrl", {
       data: {
         imageUrl: imageUrl,
       },
@@ -1911,9 +1918,7 @@ async function loadAvatars() {
       </div>
     `;
 
-    const response = await chrome.runtime.sendMessage({
-      action: "getAvatars",
-    });
+    const response = await supabaseCall("getAvatars");
 
     if (response.success) {
       displayAvatars(response.avatars);
@@ -2091,8 +2096,7 @@ async function handleAvatarGridClick(event) {
 
 async function setActiveAvatar(avatarId) {
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "setActiveAvatar",
+    const response = await supabaseCall("setActiveAvatar", {
       avatarId: avatarId,
     });
 
@@ -2122,8 +2126,7 @@ async function deleteAvatar(avatarId) {
   }
 
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "deleteAvatar",
+    const response = await supabaseCall("deleteAvatar", {
       avatarId: avatarId,
     });
 
@@ -2164,9 +2167,7 @@ function updateHeaderUserInfo() {
 
 async function loadActiveAvatarToElement(imgElement, initialsElement) {
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "getActiveAvatar",
-    });
+    const response = await supabaseCall("getActiveAvatar");
 
     if (
       response &&
@@ -2205,9 +2206,7 @@ function updateModalUserInfo() {
 
 async function loadGenerationStats() {
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "getTryOnGenerations",
-    });
+    const response = await supabaseCall("getTryOnGenerations");
 
     if (response && response.success) {
       const generationCount = response.data?.generationCount || 0;
@@ -2333,9 +2332,7 @@ async function loadTryOnGenerations() {
       </div>
     `;
 
-    const response = await chrome.runtime.sendMessage({
-      action: "getTryOnGenerations",
-    });
+    const response = await supabaseCall("getTryOnGenerations");
 
     if (response.success) {
       displayTryOnGenerations(response.data.generations);
@@ -2544,8 +2541,7 @@ async function deleteTryOn(generationId) {
   }
 
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "deleteTryOnGeneration",
+    const response = await supabaseCall("deleteTryOnGeneration", {
       data: { generationId },
     });
 
@@ -2605,9 +2601,7 @@ async function handleDeleteAccount() {
   try {
     updateStatus("deleting", "Deleting account...");
 
-    const response = await chrome.runtime.sendMessage({
-      action: "deleteAccount",
-    });
+    const response = await supabaseCall("deleteAccount");
 
     if (response.success) {
       showSuccess("Account deleted successfully");
@@ -2688,9 +2682,7 @@ function clearForms() {
 // Subscription management functions
 async function updateSubscriptionUI() {
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "getSubscriptionStatus",
-    });
+    const response = await supabaseCall("getSubscriptionStatus");
 
     const subscriptionBadge = document.getElementById("subscriptionBadge");
     const subscriptionText = document.getElementById("subscriptionText");
