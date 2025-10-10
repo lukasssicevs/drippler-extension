@@ -593,12 +593,12 @@ function showSettingsModal() {
         .close-btn {
             background: transparent;
             border: none;
-            font-size: 20px;
+            font-size: 24px;
             cursor: pointer;
             color: white;
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 16px;
+            right: 16px;
             width: 32px;
             height: 32px;
             display: flex;
