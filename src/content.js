@@ -1,4 +1,5 @@
 // Drippler Extension Content Script
+import { supabaseCall, checkAuthenticationWithRetry } from "./supabase-utils.js";
 
 console.log(
   "Drippler Extension content script loaded on:",
@@ -592,35 +593,28 @@ function setupImageHoverFunctionality() {
 
     console.log("Adding image to wardrobe:", currentImage.src);
 
-    // Show loading state
+    // Show loading state immediately
     const button = event.target.closest("#drippler-image-hover-btn");
     const originalContent = button.innerHTML;
 
-    // Check authentication first with retry logic
-    try {
-      let authResponse = await chrome.runtime.sendMessage({
-        action: "getCurrentUser",
-      });
+    // Show "Adding Item..." state immediately, even during reconnection
+    button.innerHTML = `
+      <div class="drippler-hover-btn-content">
+        <div class="drippler-hover-btn-icon">
+          <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
+        </div>
+        <span class="drippler-hover-btn-text">Adding Item...</span>
+      </div>
+    `;
+    button.style.pointerEvents = "none";
 
-      // If auth check fails, try refreshing session once
-      if (!authResponse.success || !authResponse.user) {
-        console.log("Initial auth check failed, trying session refresh...");
-        try {
-          const refreshResponse = await chrome.runtime.sendMessage({
-            action: "refreshUserSession",
-          });
+    // Check authentication with resilient retry logic
+    const authResult = await checkAuthenticationWithRetry();
 
-          if (refreshResponse.success && refreshResponse.user) {
-            console.log("Session refresh successful, user authenticated");
-            authResponse = refreshResponse;
-          }
-        } catch (refreshError) {
-          console.warn("Session refresh failed:", refreshError);
-        }
-      }
-
-      if (!authResponse.success || !authResponse.user) {
-        // User not authenticated - show login prompt
+    if (!authResult.authenticated) {
+      // Only show sign-in prompt if user is actually not authenticated
+      // (not just because of connection issues)
+      if (authResult.error && !authResult.error.includes('connection')) {
         button.innerHTML = `
           <div class="drippler-hover-btn-content">
             <div class="drippler-hover-btn-icon">
@@ -636,42 +630,27 @@ function setupImageHoverFunctionality() {
           chrome.runtime.sendMessage({ action: "openPopup" });
           hideHoverButton();
         }, 1000);
-        return;
-      }
-    } catch (authError) {
-      console.error("Error checking authentication:", authError);
-      // Show error and open popup as fallback
-      button.innerHTML = `
-        <div class="drippler-hover-btn-content">
-          <div class="drippler-hover-btn-icon">
-            <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
+      } else {
+        // Connection issue - show retry message
+        button.innerHTML = `
+          <div class="drippler-hover-btn-content">
+            <div class="drippler-hover-btn-icon">
+              <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
+            </div>
+            <span class="drippler-hover-btn-text">Connection Issue</span>
           </div>
-          <span class="drippler-hover-btn-text">Please Sign In</span>
-        </div>
-      `;
+        `;
 
-      setTimeout(() => {
-        chrome.runtime.sendMessage({ action: "openPopup" });
-        hideHoverButton();
-      }, 1000);
+        setTimeout(() => {
+          hideHoverButton();
+        }, 2000);
+      }
       return;
     }
 
-    // Show loading state
-    button.innerHTML = `
-      <div class="drippler-hover-btn-content">
-        <div class="drippler-hover-btn-icon">
-          <img src="${chrome.runtime.getURL('assets/drip-static.webp')}" alt="Drip icon" style="height: 64px !important; width: auto !important; max-height: none !important; max-width: none !important; object-fit: contain; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 999999;">
-        </div>
-        <span class="drippler-hover-btn-text">Adding Item...</span>
-      </div>
-    `;
-    button.style.pointerEvents = "none";
-
     try {
-      // Send message to background script to save image
-      const response = await chrome.runtime.sendMessage({
-        action: "saveImageAsClothing",
+      // Send message to background script to save image using resilient wrapper
+      const response = await supabaseCall("saveImageAsClothing", {
         data: {
           imageUrl: currentImage.src,
           pageUrl: window.location.href,
@@ -934,9 +913,7 @@ function setupGeneralFunctionality() {
 // Check Supabase connection
 async function checkSupabaseConnection() {
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: "checkSupabaseStatus",
-    });
+    const response = await supabaseCall("checkSupabaseStatus");
 
     supabaseReady = response.connected;
     console.log("Supabase connection status:", supabaseReady);

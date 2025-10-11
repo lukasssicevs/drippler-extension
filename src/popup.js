@@ -1,24 +1,11 @@
 // Drippler Extension Popup with Supabase Integration
 import { createClient } from "@supabase/supabase-js";
 import { createIconHTML, IconNames, IconWeights } from "./icons.js";
+import { supabaseCall } from "./supabase-utils.js";
 
 // Global state
 let currentUser = null;
 let isAuthenticated = false;
-
-// Universal Supabase call wrapper with auto-retry
-async function supabaseCall(action, data = {}) {
-  const response = await chrome.runtime.sendMessage({ action, ...data });
-
-  // If Supabase connection lost, retry once
-  if (response && !response.success && response.error?.includes('Supabase not connected')) {
-    await chrome.runtime.sendMessage({ action: "initSupabase" });
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return await chrome.runtime.sendMessage({ action, ...data });
-  }
-
-  return response;
-}
 
 // Popup functionality
 document.addEventListener("DOMContentLoaded", async () => {
